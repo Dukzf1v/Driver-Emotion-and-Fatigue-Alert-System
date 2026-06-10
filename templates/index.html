@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DMS Central - Centralized Driver Monitoring System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav id="mainNav">
+    <a href="#" class="nav-logo">
+      DMS Central
+    </a>
+    <div class="nav-links">
+      <a href="#" id="tabLive" class="active">Live Monitoring</a>
+      <a href="#" id="tabHistory">History</a>
+      <a href="#" id="tabDrivers">Drivers</a>
+    </div>
+    <div class="nav-cta">
+      <div id="connBadge"
+        style="padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid #8b949e; color: #8b949e; background: rgba(139,148,158,.1); transition: all 0.3s;">
+        <i class="fa-solid fa-wifi-slash me-1"></i> Disconnected
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER -->
+  <section class="dashboard-section" id="dashboard">
+    <div class="dms-container">
+
+      <!-- SIDEBAR: VEHICLE LIST -->
+      <div class="dms-sidebar" id="sidebarSection">
+        <div class="sidebar-title">Vehicle List</div>
+        <div class="vehicle-list" id="vehicleList">
+          <!-- Added dynamically via JavaScript -->
+        </div>
+      </div>
+
+      <!-- MAIN PANEL: SELECTED VEHICLE DETAILS -->
+      <div class="dms-content">
+
+        <!-- TAB 1: LIVE MONITORING -->
+        <div id="liveView" style="width: 100%;">
+          <!-- Placeholder when no vehicle is connected -->
+          <div id="noVehiclesPlaceholder">
+            <div
+              style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; text-align: center; width: 100%;">
+              <i class="fa-solid fa-truck-monitoring mb-3"
+                style="font-size: 4rem; color: var(--text3); opacity: 0.5;"></i>
+              <h2 style="font-family: 'Outfit', sans-serif; color: var(--text); font-weight: 600;">No vehicle connected
+              </h2>
+              <p style="color: var(--text3); max-width: 400px; margin-top: 10px; font-size: 14px;">Start the monitoring
+                client on the vehicle (AI processing program) to send data to this Central Dashboard.</p>
+            </div>
+          </div>
+
+          <!-- Detail parameter display panel -->
+          <div id="vehicleDetails" style="display: none; width: 100%;">
+            <!-- Driver Meta -->
+            <div class="driver-meta">
+              <div class="meta-item">
+                <div class="meta-icon"><i class="fa-solid fa-truck"></i></div>
+                <div class="meta-info"><span class="meta-lbl">Vehicle ID</span><span class="meta-val"
+                    id="detailVehicleId">---</span></div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-icon"><i class="fa-solid fa-id-card"></i></div>
+                <div class="meta-info"><span class="meta-lbl">Driver</span><span class="meta-val"
+                    id="detailDriverName">---</span></div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-icon"><i class="fa-solid fa-clock"></i></div>
+                <div class="meta-info"><span class="meta-lbl">Connection Status</span><span class="meta-val"
+                    id="detailConnStatus">Offline</span></div>
+              </div>
+            </div>
+
+            <!-- State Banner -->
+            <div id="stateBanner" class="state-UNKNOWN"
+              style="padding: 24px 30px; border-radius: 16px; text-align: center; margin-bottom: 25px; border-width: 2px; border-style: solid; transition: all 0.3s;">
+              <h1
+                style="font-family: 'Outfit', sans-serif; font-size: 2.2rem; margin-bottom: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 12px;">
+                <i id="stateIcon" class="fa-solid fa-circle-question"></i>
+                <span id="stateText">UNKNOWN</span>
+              </h1>
+              <p id="stateAction" style="font-family: 'DM Sans', sans-serif; font-size: 1rem; opacity: 0.9; margin: 0;">
+                Waiting for initial data from vehicle...</p>
+            </div>
+
+            <!-- Live values + Progress Bars -->
+            <div class="dashboard-preview">
+              <div class="dp-topbar">
+                <div class="dp-title">Live Parameters</div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div class="dp-live">
+                    <div class="dp-live-dot"></div>Real-time
+                  </div>
+                </div>
+              </div>
+              <div class="dp-body">
+
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                  <span style="font-size: 11px; color: var(--text3);"><i class="fa-solid fa-circle-info me-1"></i>
+                    Dashed line: Warning threshold (60%, 80%)</span>
+                  <span id="lastUpdate" style="font-size: 11px; color: var(--text3);">Waiting...</span>
+                </div>
+
+                <!-- Fatigue -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <div
+                    style="font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600; color: var(--text);">
+                    <i class="fa-solid fa-bed" style="color: #F0A030; margin-right: 8px;"></i> Fatigue
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <span id="fatigueTrend" class="trend-indicator trend-stable">--</span>
+                    <span id="fatigueVal"
+                      style="font-family: 'Outfit', sans-serif; font-size: 17px; font-weight: 700; width: 50px; text-align: right;">0.0%</span>
+                  </div>
+                </div>
+                <div class="progress-container">
+                  <div class="threshold-marker threshold-60"></div>
+                  <div class="threshold-marker threshold-80"></div>
+                  <div class="progress">
+                    <div id="fatigueBar" class="progress-bar bg-fatigue" style="width: 0%;"></div>
+                  </div>
+                </div>
+
+                <!-- Anger -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <div
+                    style="font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600; color: var(--text);">
+                    <i class="fa-solid fa-face-angry" style="color: #E85A5A; margin-right: 8px;"></i> Anger
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <span id="angryTrend" class="trend-indicator trend-stable">--</span>
+                    <span id="angryVal"
+                      style="font-family: 'Outfit', sans-serif; font-size: 17px; font-weight: 700; width: 50px; text-align: right;">0.0%</span>
+                  </div>
+                </div>
+                <div class="progress-container">
+                  <div class="threshold-marker threshold-60"></div>
+                  <div class="threshold-marker threshold-80"></div>
+                  <div class="progress">
+                    <div id="angryBar" class="progress-bar bg-angry" style="width: 0%;"></div>
+                  </div>
+                </div>
+
+                <!-- Fear -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <div
+                    style="font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600; color: var(--text);">
+                    <i class="fa-solid fa-face-surprise" style="color: #8888F8; margin-right: 8px;"></i> Fear
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <span id="fearTrend" class="trend-indicator trend-stable">--</span>
+                    <span id="fearVal"
+                      style="font-family: 'Outfit', sans-serif; font-size: 17px; font-weight: 700; width: 50px; text-align: right;">0.0%</span>
+                  </div>
+                </div>
+                <div class="progress-container" style="margin-bottom: 0;">
+                  <div class="threshold-marker threshold-60"></div>
+                  <div class="threshold-marker threshold-80"></div>
+                  <div class="progress">
+                    <div id="fearBar" class="progress-bar bg-fear" style="width: 0%;"></div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- LIVE CHART CONTAINER -->
+            <div class="dashboard-preview" style="margin-top: 30px;">
+              <div class="dp-topbar">
+                <div class="dp-title">State Timeline Chart</div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div class="dp-live">
+                    <div class="dp-live-dot"></div>Last 1 minute (s)
+                  </div>
+                </div>
+              </div>
+              <div class="dp-body" style="padding: 24px;">
+                <canvas id="liveChart" style="width: 100%; height: 260px;"></canvas>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB 2: WARNING HISTORY -->
+        <div id="historyView" style="display: none; width: 100%;">
+          <div class="dashboard-preview">
+            <div class="dp-topbar">
+              <div class="dp-title"><i class="fa-solid fa-clock-rotate-left me-2" style="color: var(--sky);"></i>System
+                Warning Logs</div>
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <input type="text" id="historySearch" class="filter-input" placeholder="Search by license plate...">
+                <select id="historyFilter" class="filter-input">
+                  <option value="">All Warnings</option>
+                  <option value="FATIGUE">Fatigue</option>
+                  <option value="DISTRACTED">Distracted</option>
+                  <option value="ANGRY">Anger</option>
+                  <option value="FEAR">Fear</option>
+                </select>
+                <button id="btnReloadHistory" class="btn-ghost" style="display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-solid fa-rotate"></i> Reload
+                </button>
+              </div>
+            </div>
+            <div class="dp-body" style="padding: 0; overflow-x: auto;">
+              <table class="dms-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>License Plate</th>
+                    <th>Driver Name</th>
+                    <th>State</th>
+                    <th>Fatigue</th>
+                    <th>Anger</th>
+                    <th>Fear</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                  <!-- Log data dynamically loaded via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: DRIVER LIST -->
+        <div id="driversView" style="display: none; width: 100%;">
+          <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--text);">
+              Driver Profiles & Behavioral Statistics</h2>
+            <button id="btnReloadDrivers" class="btn-ghost" style="display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-rotate"></i> Reload
+            </button>
+          </div>
+          <div class="driver-grid" id="driverGrid">
+            <!-- Grid cards loaded dynamically via JS -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div style="font-size:13px;color:var(--text3)">© 2026 DMS Central. Intelligent Driver Monitoring System.</div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>

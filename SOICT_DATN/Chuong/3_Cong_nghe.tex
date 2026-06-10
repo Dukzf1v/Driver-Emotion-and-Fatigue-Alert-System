@@ -1,0 +1,95 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\section{Tổng quan về mô hình hình học khuôn mặt và các chỉ số sinh học tài xế}
+\label{section:3.1}
+
+\subsection{Mô hình MediaPipe FaceMesh trích xuất 468 mốc khuôn mặt}
+MediaPipe FaceMesh là một giải pháp học máy tiên tiến được phát triển bởi Google nhằm ước lượng topo khuôn mặt 3D trong thời gian thực. Mô hình này áp dụng kiến trúc mạng nơ-ron tích chập sâu (CNN) tối ưu hóa cao cho các thiết bị di động và biên. Luồng xử lý của mô hình gồm hai giai đoạn chính:
+\begin{enumerate}
+    \item \textbf{Detector (BlazeFace):} Định vị nhanh vùng chứa khuôn mặt trên khung hình thô. Bộ định vị này chạy cực kỳ nhanh và hoạt động như một cơ chế kích hoạt (trigger) để chạy bước tiếp theo.
+    \item \textbf{Regressor (FaceMesh Model):} Nhận vùng ảnh khuôn mặt đã cắt từ bước trước để dự đoán trực tiếp tọa độ 3D của 468 điểm mốc (landmarks) tương quan trên khuôn mặt dưới dạng tọa độ thực tế normalized (x, y, z).
+\end{enumerate}
+
+Mô hình hồi quy FaceMesh sử dụng cơ chế tích hợp đặc trưng không gian và học sâu có giám sát, được huấn luyện trên một tập dữ liệu khuôn mặt khổng lồ với nhiều biểu cảm, góc nghiêng và điều kiện ánh sáng khác nhau. Nhờ vậy, mô hình đạt độ ổn định rất cao và không yêu cầu phần cứng cảm biến chiều sâu (như LiDAR hay TrueDepth), giúp giảm thiểu tối đa chi phí thiết bị khi triển khai trên ô tô.
+
+\subsection{Công thức toán học tính tỷ lệ mở mắt EAR và tỷ lệ mở miệng MAR}
+Để định lượng trạng thái nhắm/mở mắt và ngáp của tài xế, đồ án sử dụng các công thức hình học tính toán khoảng cách Euclidean giữa các điểm mốc tương ứng trên khuôn mặt:
+\begin{itemize}
+    \item \textbf{Tỷ lệ mở mắt EAR (Eye Aspect Ratio):} Đối với mỗi mắt, EAR được định nghĩa là tỷ số giữa tổng độ dài hai khoảng cách dọc của mắt chia cho hai lần khoảng cách ngang của mắt. Công thức tổng quát:
+    \[ EAR = \frac{||p_2 - p_6|| + ||p_3 - p_5||}{2 ||p_1 - p_4||} \]
+    Trong đó, $p_1, p_2, p_3, p_4, p_5, p_6$ lần lượt là tọa độ 3D của các điểm mốc bao quanh một mắt. Hệ thống sử dụng giá trị EAR trung bình của cả hai mắt để đưa ra quyết định:
+    \[ EAR_{\text{mean}} = \frac{EAR_{\text{Left}} + EAR_{\text{Right}}}{2} \]
+    Trong mã nguồn của LandmarkEngine, các mốc tương đương được ánh xạ từ cấu trúc MediaPipe FaceMesh:
+    \begin{itemize}
+        \item Mắt phải (Right Eye): \texttt{[33, 160, 158, 133, 153, 144]}
+        \item Mắt trái (Left Eye): \texttt{[362, 385, 387, 263, 373, 380]}
+    \end{itemize}
+
+    \item \textbf{Tỷ lệ mở miệng MAR (Mouth Aspect Ratio):} Để đo độ mở của khuôn miệng tài xế nhằm nhận dạng hành vi ngáp (yawn), MAR được tính theo công thức tương tự bằng cách đo khoảng cách giữa các điểm mốc viền môi trên và viền môi dưới chia cho khoảng cách ngang giữa hai khóe mép:
+    \[ MAR = \frac{||p_{51} - p_{59}|| + ||p_{53} - p_{57}||}{2 ||p_{49} - p_{55}||} \]
+    Các mốc tương ứng được lấy từ LandmarkEngine gồm: khóe miệng trái/phải \texttt{[61, 291]}, điểm môi trên dọc \texttt{[37, 267]}, và điểm môi dưới dọc \texttt{[84, 314]}.
+
+    \item \textbf{Ước lượng góc cúi đầu (Pitch):} Để nhận biết hành vi ngủ gật gục đầu hoặc cúi đầu xem điện thoại, LandmarkEngine thiết lập một mô hình hình học 3D chuẩn của khuôn mặt người gồm 6 điểm mốc chính (đầu mũi, cằm, khóe mắt trái/phải, khóe miệng trái/phải). Bằng việc ánh xạ các tọa độ 2D thực tế nhận được từ camera hành trình với mô hình 3D chuẩn này, hệ thống áp dụng thuật toán giải bài toán PnP (Perspective-n-Point) bằng hàm \texttt{cv2.solvePnP} của OpenCV để tìm ra ma trận quay $R$ và ma trận dịch chuyển $T$. Từ ma trận quay $R$, hệ thống phân tích ra 3 góc Euler: Pitch (cúi/ngẩng đầu), Roll (nghiêng đầu sang hai bên) và Yaw (quay đầu sang trái/phải). Trọng tâm giám sát là góc Pitch biểu thị độ cúi đầu sâu (góc Pitch âm).
+\end{itemize}
+
+\subsection{Chỉ số PERCLOS trong đánh giá rủi ro mệt mỏi}
+PERCLOS (Percentage of Eye Closure) là tiêu chuẩn vàng trong y học và ngành an toàn giao thông để định lượng mức độ buồn ngủ của tài xế. Chỉ số này đo tỷ lệ phần trăm thời gian mà mắt người lái nhắm từ 80\% trở lên trong một khoảng thời gian quan sát xác định (cửa sổ trượt thời gian).
+Trong đồ án, trạng thái nhắm mắt được định nghĩa khi giá trị $EAR < T_{\text{EAR}}$ (ngưỡng nhắm mắt mặc định $T_{\text{EAR}} = 0.14$).
+Nếu gọi $N$ là tổng số khung hình trong cửa sổ trượt (mặc định $N = 150$ khung hình, tương đương khoảng 5 giây hoạt động ở tốc độ 30 FPS) và $EAR_i$ là tỷ lệ mở mắt tại khung hình thứ $i$, công thức PERCLOS được biểu diễn toán học như sau:
+\[ \text{PERCLOS} = \frac{\sum_{i=1}^{N} \mathbb{I}(EAR_i < T_{\text{EAR}})}{N} \]
+Trong đó, $\mathbb{I}(\cdot)$ là hàm chỉ thị, nhận giá trị $1$ nếu biểu thức đúng và $0$ nếu biểu thức sai. Chỉ số PERCLOS nhận giá trị từ $0.0$ (mở mắt hoàn toàn suốt cửa sổ thời gian) đến $1.0$ (nhắm mắt hoàn toàn suốt cửa sổ thời gian). Chỉ số PERCLOS vượt mức $0.3$ thể hiện trạng thái buồn ngủ cực kỳ nghiêm trọng.
+
+\section{Tìm hiểu về mạng học sâu CNN MobileNetV3}
+\label{section:3.2}
+
+\subsection{Kiến trúc MobileNetV3 tối ưu hóa cho thiết bị di động}
+Mạng MobileNetV3 được thiết kế nhằm mục đích triển khai hiệu quả trên các thiết bị di động và thiết bị nhúng có tài nguyên phần cứng giới hạn. Google đã áp dụng phương pháp kết hợp giữa tìm kiếm kiến trúc mạng tự động (NAS --- Network Architecture Search) và thuật toán tối ưu hóa NetAdapt để thiết kế ra cấu trúc mạng nơ-ron tích chập (CNN) tối ưu nhất về cả hiệu năng lẫn kích thước tệp mô hình. 
+
+Đồ án lựa chọn biến thể \textbf{MobileNetV3-Large} làm mạng backbone chính. So với các kiến trúc CNN truyền thống như VGG-16 hay ResNet-50 có kích thước hàng trăm Megabytes và tốn hàng trăm mili-giây để xử lý một ảnh trên CPU, MobileNetV3-Large chỉ có kích thước khoảng 13MB (ở dạng PyTorch checkpoint) và thời gian suy luận dưới 15ms trên CPU thường, giúp hệ thống hoạt động mượt mà không cần GPU đắt đỏ trên xe.
+
+\subsection{Khối Inverted Residuals và khối chú ý Squeeze-and-Excitation}
+Sự vượt trội về mặt hiệu năng của MobileNetV3 đến từ các khối xây dựng cốt lõi sau:
+\begin{itemize}
+    \item \textbf{Inverted Residuals với Bottleneck Linear:} Trái ngược với các khối Residual thông thường nén số kênh ở giữa, khối Inverted Residual thực hiện mở rộng số lượng kênh đặc trưng trong lớp ẩn bằng một phép tích chập $1 \times 1$ (expansion), thực hiện phép tích chập theo chiều sâu (Depthwise Convolution --- DWConv) để trích xuất đặc trưng không gian với chi phí tính toán cực thấp, sau đó nén ngược lại số kênh thông qua tích chập $1 \times 1$ (projection). Nhờ liên kết tắt (shortcut connection) nối trực tiếp giữa hai đầu có số kênh nhỏ, luồng thông tin và gradient được truyền đi tốt hơn mà vẫn tiết kiệm bộ nhớ.
+    \item \textbf{Khối chú ý Squeeze-and-Excitation (SE):} Được tích hợp trực tiếp vào cấu trúc bottleneck để tăng cường chất lượng biểu diễn đặc trưng. Khối SE thực hiện hai bước:
+    \begin{enumerate}
+        \item \textit{Squeeze (Ép):} Gom cụm thông tin không gian của các kênh đặc trưng thành một vector đặc trưng kênh duy nhất thông qua phép toán Global Average Pooling.
+        \item \textit{Excitation (Kích hoạt):} Sử dụng hai lớp Fully Connected (FC) với hàm kích hoạt Sigmoid để tính toán trọng số quan trọng (attention weights) cho từng kênh màu đặc trưng. Các kênh đặc trưng chứa thông tin hữu ích về biểu cảm khuôn mặt (như vùng chân mày co lại khi tức giận) sẽ được nhân với trọng số lớn hơn, trong khi các kênh chứa nhiễu nền sẽ bị giảm nhẹ.
+    \end{enumerate}
+\end{itemize}
+
+\subsection{Hàm kích hoạt Hard-swish và cơ chế học chuyển giao (Transfer Learning)}
+\begin{itemize}
+    \item \textbf{Hàm kích hoạt Hard-swish:} Hàm kích hoạt Swish ($x \cdot \text{sigmoid}(\beta x)$) giúp cải thiện độ chính xác của mạng sâu nhưng tính toán hàm số mũ $e^{-x}$ của Sigmoid rất tốn kém trên thiết bị nhúng. MobileNetV3 thay thế bằng hàm Hard-swish (h-swish) sử dụng hàm tuyến tính từng khúc ReLU6 để xấp xỉ gần đúng:
+    \[ \text{h-swish}(x) = x \cdot \frac{\text{ReLU6}(x + 3)}{6} \]
+    Trong đó, $\text{ReLU6}(y) = \min(\max(0, y), 6)$. Phép toán này có thể được tối ưu hóa cực tốt ở cấp độ phần cứng nhúng, tăng tốc độ tính toán đáng kể mà không làm giảm độ chính xác của mô hình.
+    \item \textbf{Học chuyển giao (Transfer Learning):} Do số lượng ảnh biểu cảm khuôn mặt tự nhiên thu thập được có giới hạn, việc huấn luyện một mạng CNN lớn từ đầu dễ gây ra hiện tượng quá khớp (overfitting). Đồ án sử dụng cơ chế học chuyển giao bằng cách lấy các trọng số (weights) đã được huấn luyện sẵn trên tập dữ liệu ImageNet-1K khổng lồ làm xuất phát điểm. Hệ thống thực hiện tinh chỉnh (fine-tuning) mô hình qua hai giai đoạn huấn luyện chuyên biệt trên tập dữ liệu DMS tích hợp nhằm chuyển đổi tri thức nhận diện vật thể tổng quát sang tri thức phân biệt các sắc thái biểu cảm tinh vi của tài xế.
+\end{itemize}
+
+\section{Các công nghệ và thư viện phát triển phần mềm}
+\label{section:3.3}
+
+\subsection{Ngôn ngữ Python, framework PyTorch và thư viện OpenCV}
+\begin{itemize}
+    \item \textbf{Ngôn ngữ Python:} Được lựa chọn làm ngôn ngữ lập trình xuyên suốt dự án từ tiền xử lý dữ liệu, huấn luyện mô hình cho tới cài đặt ứng dụng biên và Server API nhờ hệ sinh thái thư viện AI cực kỳ phong phú.
+    \item \textbf{PyTorch Framework:} Cung cấp nền tảng học sâu mạnh mẽ để thiết kế mạng, nạp dữ liệu đa luồng qua \texttt{DataLoader}, định nghĩa hàm mất mát và chạy tối ưu hóa. PyTorch hỗ trợ đồ thị tính toán động, giúp việc gỡ lỗi mô hình trở nên dễ dàng và cho phép xuất mô hình linh hoạt.
+    \item \textbf{Thư viện OpenCV (Open Source Computer Vision Library):} Đóng vai trò là thư viện xử lý ảnh chủ đạo ở Client. OpenCV chịu trách nhiệm giao tiếp với camera phần cứng (Webcam), thực hiện trích xuất khung hình ở dạng ma trận ảnh, crop vùng mặt, thực hiện chuyển đổi màu sắc, lọc cân bằng sáng tương phản bằng CLAHE, và hiển thị giao diện HUD giám sát thời gian thực lên màn hình tài xế.
+\end{itemize}
+
+\subsection{Thư viện phân tích dữ liệu: Pandas, NumPy, scikit-learn, matplotlib}
+\begin{itemize}
+    \item \textbf{NumPy:} Xử lý các phép toán ma trận đa chiều hiệu năng cao. Mọi khung hình camera và ảnh khuôn mặt đều được biểu diễn và biến đổi dưới dạng các mảng NumPy.
+    \item \textbf{Pandas:} Quản lý cấu trúc dữ liệu, đọc ghi tập tin CSV chứa siêu dữ liệu (metadata) của các bộ dữ liệu khuôn mặt phục vụ tiền xử lý.
+    \item \textbf{scikit-learn:} Cung cấp các công cụ kiểm nghiệm mô hình toán học như phân tích ma trận nhầm lẫn (confusion matrix), tính toán các chỉ số Precision, Recall và F1-score để đánh giá chất lượng mô hình sau huấn luyện.
+    \item \textbf{matplotlib:} Thư viện vẽ đồ thị trực quan hóa quá trình huấn luyện mô hình (đường cong Loss và Accuracy) và phân bổ nhãn dữ liệu.
+\end{itemize}
+
+\subsection{Flask Web Server, Server-Sent Events (SSE) và SQLite}
+\begin{itemize}
+    \item \textbf{Flask Web Server:} Một micro-framework viết bằng Python cực kỳ nhẹ, hiệu quả và dễ sử dụng. Flask được sử dụng ở trung tâm điều hành để xây dựng các API nhận dữ liệu RESTful JSON từ các xe gửi về và phục vụ trang web Dashboard.
+    \item \textbf{Server-Sent Events (SSE):} Thay vì sử dụng giao thức WebSockets phức tạp cần bắt tay hai chiều và tốn tài nguyên kết nối liên tục, hệ thống sử dụng SSE thông qua endpoint \texttt{/api/stream}. SSE là một chuẩn kết nối HTTP một chiều cho phép máy chủ Flask tự động đẩy (push) dữ liệu cập nhật trạng thái mới nhất của các xe xuống trình duyệt của người quản lý ngay khi có sự thay đổi. Điều này giúp Dashboard tự động cập nhật thời gian thực với độ trễ tối thiểu mà không cần tải lại trang.
+    \item \textbf{SQLite Database:} Hệ quản trị cơ sở dữ liệu quan hệ dạng tệp nhỏ gọn, không cần cài đặt dịch vụ máy chủ phức tạp. SQLite lưu trữ dữ liệu vĩnh viễn cho hệ thống gồm thông tin đăng ký phương tiện và nhật ký cảnh báo chi tiết, đảm bảo tốc độ ghi đọc nhanh chóng và an toàn dữ liệu khi mất điện đột ngột.
+\end{itemize}
+
+\end{document}

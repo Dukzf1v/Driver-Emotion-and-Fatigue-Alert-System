@@ -1,0 +1,94 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\section{Khảo sát hiện trạng và các nghiên cứu liên quan}
+\label{section:2.1}
+
+\subsection{Khảo sát các hệ thống hỗ trợ lái xe an toàn trên thị trường}
+Hiện nay, trên thị trường thiết bị phụ trợ ô tô và giám sát đội xe đã xuất hiện một số giải pháp giám sát hành trình và cảnh báo tài xế, tiêu biểu có thể kể đến:
+\begin{enumerate}
+    \item \textbf{Các thiết bị giám sát hành trình GPS thông thường (Hộp đen):} Chỉ ghi nhận thông số cơ học như vận tốc, vị trí xe, thời gian lái xe liên tục. Hệ thống này hoàn toàn không biết tài xế có đang ngủ gật hay tức giận hay không mà chỉ cảnh báo cứng nhắc khi tài xế lái xe liên tục quá 4 giờ theo luật định.
+    \item \textbf{Các hệ thống DMS tích hợp sẵn trên xe hạng sang (e.g., Mercedes-Benz Attention Assist, BMW Driver Assistant):} Sử dụng các camera hồng ngoại đắt tiền tích hợp sâu vào hệ thống điều khiển trung tâm của xe để theo dõi chuyển động mắt. Tuy nhiên, các giải pháp này là công nghệ độc quyền, chi phí cực kỳ đắt đỏ và không thể trang bị đại trà cho các dòng xe phổ thông hoặc xe tải chở hàng hiện nay tại Việt Nam.
+    \item \textbf{Các sản phẩm DMS thương mại lắp ngoài (e.g., Seeing Machines Guardian, Smart Eye):} Có độ chính xác rất cao nhưng đi kèm phí bản quyền phần mềm hàng năm rất lớn, thiết bị phần cứng chuyên dụng phức tạp, gây khó khăn cho các doanh nghiệp vận tải vừa và nhỏ trong nước tiếp cận.
+\end{enumerate}
+
+\subsection{Các nghiên cứu nhận diện ngủ gật và trạng thái cảm xúc tài xế}
+Trong giới nghiên cứu học thuật, bài toán DMS thường được chia thành hai nhánh tiếp cận độc lập:
+\begin{itemize}
+    \item \textbf{Nhánh tiếp cận dựa trên hình học (Geometric-based):} Sử dụng các mốc khuôn mặt (Landmarks) để tính toán EAR và MAR. Nhánh này có ưu điểm là tốc độ tính toán cực kỳ nhanh, chạy tốt trên CPU yếu, nhưng lại gặp nhược điểm lớn là dễ bị báo động giả khi tài xế nheo mắt cười, chớp mắt nhanh tự nhiên hoặc góc mặt nghiêng. Đồng thời, nó hoàn toàn bỏ qua các biểu cảm cảm xúc (như tức giận hay sợ hãi) vốn ảnh hưởng nghiêm trọng tới hành vi lái xe an toàn.
+    \item \textbf{Nhánh tiếp cận dựa trên học sâu (Deep Learning-based):} Đưa toàn bộ ảnh khuôn mặt vào các mạng CNN hoặc ViT (Vision Transformer) để phân loại trực tiếp trạng thái mệt mỏi/cảm xúc. Nhánh này có độ chính xác rất cao nhưng đòi hỏi tài nguyên tính toán cực kỳ lớn (GPU mạnh), tốc độ xử lý trên CPU biên rất chậm (chỉ đạt 3--5 FPS), không thể đáp ứng yêu cầu cảnh báo tức thời dưới 100ms.
+\end{itemize}
+
+Do đó, đồ án đề xuất giải pháp \textbf{Hybrid (Lai)}: Sử dụng MediaPipe (hình học) chạy ở 30 FPS để bắt kịp các khoảnh khắc nhắm mắt/ngáp nhanh, kết hợp với MobileNetV3 CNN (học sâu cảm xúc) chạy ở 5 FPS để bổ trợ và hiệu chỉnh kết quả cảnh báo. Sự kết hợp này mang lại hiệu quả vượt trội về mặt tài nguyên và độ chính xác.
+
+\section{Khảo sát các bộ dữ liệu khuôn mặt phục vụ huấn luyện mô hình}
+\label{section:2.2}
+Để xây dựng một bộ phân loại cảm xúc và buồn ngủ có độ tin cậy cao, đồ án đã thực hiện khảo sát kỹ lưỡng hai nhóm tập dữ liệu chính:
+
+\begin{table}[htbp]
+\centering
+\caption{Khảo sát các bộ dữ liệu khuôn mặt phục vụ huấn luyện mô hình}
+\label{tab:datasets}
+\begin{tabular}{|l|l|l|p{3.5cm}|p{4.5cm}|}
+\hline
+\textbf{Tên bộ dữ liệu} & \textbf{Loại dữ liệu} & \textbf{Số lượng mẫu} & \textbf{Đặc trưng môi trường} & \textbf{Vai trò trong Đồ án} \\ \hline
+\textbf{RAF-DB} & Biểu cảm tổng quát & $\sim$30,000 ảnh & Ánh sáng tự nhiên, góc mặt đa dạng & Huấn luyện cảm xúc nền tảng (cảm xúc cơ bản) \\ \hline
+\textbf{AffectNet} & Biểu cảm tổng quát & $\sim$450,000 ảnh & Internet, biểu cảm tự nhiên phong phú & Tăng cường độ phủ và tính tổng quát hóa của CNN \\ \hline
+\textbf{FER-2013} & Biểu cảm tổng quát & $\sim$35,887 ảnh & Ảnh Grayscale chất lượng thấp (48x48) & Kiểm nghiệm mô hình trong điều kiện ảnh mờ/nhiễu \\ \hline
+\textbf{UTA-RLDD} & Giám sát ngủ gật & 240 video clips & Tài xế trong cabin xe, trạng thái buồn ngủ thật & Trích xuất và kiểm nghiệm chỉ số ngủ gật thực tế \\ \hline
+\textbf{NTHU DDD} & Giám sát ngủ gật & 360 video clips & Cabin giả lập, có kính râm, ban đêm & Đánh giá sai số khi tài xế đeo kính hoặc lái xe ban đêm \\ \hline
+\textbf{MLI-DER} & Biểu cảm tài xế & $\sim$5,000 ảnh & Tài xế trong xe, cảm xúc tức giận/sợ hãi & Tinh chỉnh (fine-tuning) các lớp cảm xúc lái xe tiêu cực \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Các bộ dữ liệu biểu cảm tổng quát}
+Các bộ dữ liệu như \textbf{RAF-DB} và \textbf{AffectNet} là những nguồn dữ liệu biểu cảm khuôn mặt lớn nhất hiện nay được gán nhãn thủ công bởi các chuyên gia. Tuy nhiên, các bức ảnh này chủ yếu được chụp trong điều kiện ánh sáng studio hoặc ảnh selfie trên Internet, thiếu đi các yếu tố gây nhiễu đặc trưng trong cabin xe như rung lắc cơ học, hướng bóng đổ thay đổi liên tục hoặc tài xế đeo kính. Do đó, các bộ dữ liệu này được sử dụng ở giai đoạn huấn luyện ban đầu (Pre-training) để mô hình học được các đặc trưng biểu cảm cơ bản.
+
+\subsection{Các bộ dữ liệu chuyên biệt về lái xe}
+Các bộ dữ liệu chuyên biệt như \textbf{NTHU DDD} và \textbf{UTA-RLDD} được ghi nhận trực tiếp trong cabin xe hơi. Đặc biệt, NTHU DDD cung cấp nhiều kịch bản rất phức tạp: tài xế đeo kính cận, đeo kính râm đen, lái xe dưới ánh nắng chói chang hoặc hoàn toàn trong đêm tối (chỉ có ánh sáng hồng ngoại). UTA-RLDD cung cấp các video tự nhiên của tài xế ở 3 cấp độ: Tỉnh táo (Alert), Mệt mỏi nhẹ (Low vigilant) và Buồn ngủ nặng (Drowsy). Đây là những nguồn tài nguyên quý giá để trích xuất đặc trưng hình học và kiểm nghiệm độ nhạy của thuật toán PERCLOS kết hợp logic cảm xúc.
+
+\section{Phân tích yêu cầu chức năng hệ thống}
+\label{section:2.3}
+
+\subsection{Yêu cầu của bộ phát hiện biểu cảm khuôn mặt và cảnh báo dùng AI}
+\begin{itemize}
+    \item \textbf{Yêu cầu F-C1 (Đọc luồng camera đa luồng):} Đọc liên tục các khung hình từ webcam hoặc camera hành trình mà không làm nghẽn luồng xử lý ảnh.
+    \item \textbf{Yêu cầu F-C2 (Định vị và bám sát khuôn mặt):} Phát hiện vùng mặt của tài xế và vẽ hộp bao (bounding box) ổn định, không bị giật hoặc nhảy lệch vị trí khi tài xế di chuyển nhẹ đầu.
+    \item \textbf{Yêu cầu F-C3 (Trích xuất chỉ số hình học):} Tính toán chính xác giá trị EAR (hai mắt), MAR (miệng) và góc cúi đầu Pitch từ 468 mốc khuôn mặt FaceMesh.
+    \item \textbf{Yêu cầu F-C4 (Phân loại cảm xúc bằng CNN):} Chạy mô hình MobileNetV3 để dự đoán xác suất của 5 trạng thái cảm xúc của tài xế.
+    \item \textbf{Yêu cầu F-C5 (Logic quyết định và cảnh báo âm thanh):} Đưa ra kết luận trạng thái cuối cùng (Bình thường, Mệt mỏi, Tức giận, Sợ hãi, Mất tập trung) và phát tiếng Beep cảnh báo ngay lập tức nếu trạng thái tiêu cực vượt ngưỡng.
+    \item \textbf{Yêu cầu F-C6 (Gửi telemetry lên Server):} Đóng gói dữ liệu (Mã xe, Tên tài xế, Trạng thái, F-Score, Anger Level, Fear Level, Timestamp) gửi lên Server trung tâm qua HTTP POST.
+\end{itemize}
+
+\subsection{Yêu cầu của Dashboard giám sát và lưu trữ}
+\begin{itemize}
+    \item \textbf{Yêu cầu F-S1 (Tiếp nhận và lưu trữ SQLite):} Cổng API RESTful nhận cập nhật từ nhiều Client đồng thời và thực hiện ghi nhận thông tin xe vào cơ sở dữ liệu \texttt{dms\_database.db}.
+    \item \textbf{Yêu cầu F-S2 (Lọc nhiễu dữ liệu - Debounce):} Áp dụng bộ lọc thời gian để tránh ghi đè liên tục các log cảnh báo trùng lặp của cùng một xe trong thời gian ngắn (dưới 10 giây).
+    \item \textbf{Yêu cầu F-S3 (Quản lý trạng thái kết nối):} Tự động phát hiện và cập nhật trạng thái Online/Offline của các xe (nếu quá 4.0 giây không nhận được tín hiệu check-in từ xe, coi như xe ngoại tuyến).
+    \item \textbf{Yêu cầu F-S4 (Đẩy dữ liệu thời gian thực qua SSE):} Thiết lập kết nối luồng SSE (\texttt{/api/stream}) để đẩy trực tiếp dữ liệu thay đổi của các phương tiện xuống Dashboard.
+    \item \textbf{Yêu cầu F-S5 (Trực quan hóa Live Monitor):} Hiển thị danh sách xe bên Sidebar, Banner trạng thái lớn, thanh progress thể hiện mức độ mệt mỏi/tức giận/sợ hãi và vẽ biểu đồ đường diễn tiến thời gian thực bằng Chart.js.
+    \item \textbf{Yêu cầu F-S6 (Xem lịch sử và tìm kiếm):} Cung cấp giao diện truy vấn bảng SQLite lịch sử cảnh báo có bộ lọc tìm kiếm theo biển số xe và phân loại trạng thái lỗi.
+    \item \textbf{Yêu cầu F-S7 (Quản lý hồ sơ tài xế và chấm điểm an toàn):} Hiển thị danh sách hồ sơ lái xe, tự động tổng hợp số lần vi phạm lỗi và tính toán Điểm số An toàn (Safety Score) theo công thức phạt lỗi.
+\end{itemize}
+
+\section{Phân tích yêu cầu phi chức năng đối với mô hình AI}
+\label{section:2.4}
+Bên cạnh các chức năng nghiệp vụ, hệ thống DMS yêu cầu rất khắt khe về các chỉ số phi chức năng (Non-functional Requirements) để đảm bảo có thể hoạt động bền bỉ, an toàn trong môi trường rung lắc và nóng bức của cabin xe:
+
+\subsection{Yêu cầu về độ chính xác phân loại của mô hình học sâu}
+\begin{itemize}
+    \item \textbf{Độ chính xác tổng thể (Overall Accuracy):} Mô hình phân loại cảm xúc MobileNetV3 phải đạt độ chính xác trên tập dữ liệu kiểm thử (Test set) tối thiểu là 85\%.
+    \item \textbf{Độ nhạy đối với lớp Tức giận (Recall for Anger):} Phải đạt tối thiểu 80\% để tránh bỏ sót các hành vi lái xe bốc đồng nguy hiểm.
+    \item \textbf{Tỷ lệ báo động giả (False Positive Rate):} Phải duy trì dưới mức 5\% để tránh việc phát tiếng Beep liên tục khi tài xế nói chuyện, nhai kẹo hoặc cười vui vẻ, gây ức chế tâm lý làm tài xế tắt thiết bị.
+\end{itemize}
+
+\subsection{Yêu cầu về tốc độ xử lý và độ trễ suy luận}
+\begin{itemize}
+    \item \textbf{Tốc độ xử lý khung hình (FPS phía Client):} Hệ thống camera đọc và trích xuất mốc hình học (MediaPipe) phải hoạt động ổn định ở mức từ 25 đến 30 khung hình/giây (FPS) trên CPU phổ thông.
+    \item \textbf{Độ trễ suy luận AI (Inference Latency):} Thời gian suy luận của mô hình CNN trên mỗi khung hình phải nhỏ hơn 50ms.
+    \item \textbf{Độ trễ phát tín hiệu cảnh báo:} Kể từ thời điểm tài xế nhắm mắt hoặc có góc gục đầu quá ngưỡng, tiếng Beep cảnh báo cục bộ phải phát ra trong vòng 100ms để đảm bảo tính phản ứng tức thời.
+    \item \textbf{Độ trễ truyền mạng và hiển thị Dashboard:} Thời gian truyền nhận tín hiệu từ xe lên máy chủ trung tâm và hiển thị lên màn hình điều hành qua luồng SSE phải nhỏ hơn 1.0 giây trong điều kiện kết nối mạng di động (4G/5G) bình thường.
+    \item \textbf{Tải nguyên CPU phía Client:} Chương trình AI chạy biên chỉ được phép chiếm dụng tối đa 40\% tài nguyên CPU của thiết bị để tránh hiện tượng quá nhiệt (overheating) khi hoạt động liên tục trong xe dưới trời nắng nóng.
+\end{itemize}
+
+\end{document}

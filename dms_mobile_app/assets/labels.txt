@@ -1,0 +1,5 @@
+normal
+anger
+fear
+happiness
+sadness

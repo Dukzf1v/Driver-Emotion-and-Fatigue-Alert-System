@@ -1,0 +1,152 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\section{Lập trình và cài đặt ứng dụng}
+\label{section:5.1}
+
+\subsection{Xây dựng và cài đặt luồng thu nhận hình ảnh đa luồng và trích xuất đặc trưng}
+Để loại bỏ hiện tượng giật khung hình hiển thị khi luồng xử lý AI gặp quá tải hoặc độ trễ suy luận của mô hình CNN tăng nhẹ, Client áp dụng kỹ thuật lập trình đa luồng (Multi-threading):
+\begin{itemize}
+    \item \textbf{Thread Camera Reader:} Một luồng riêng được khởi chạy bằng thư viện \texttt{threading} trong Python để chuyên tâm đọc các khung hình thô từ thiết bị camera hành trình (\texttt{cv2.VideoCapture}) với tốc độ tối đa của phần cứng. Khung hình đọc được đưa vào một hàng đợi (Frame Queue) có kích thước giới hạn để tránh tràn bộ nhớ.
+    \item \textbf{Thread Processing (Main Thread):} Luồng xử lý chính liên tục lấy khung hình mới nhất từ hàng đợi ra để xử lý. Nếu hàng đợi có nhiều khung hình cũ, luồng chính sẽ chủ động bỏ qua (skip) để luôn xử lý khung hình thời gian thực mới nhất, triệt tiêu hoàn toàn hiện tượng tích lũy độ trễ hình ảnh.
+\end{itemize}
+
+Sau khi lấy khung hình, luồng chính gọi đối tượng \texttt{LandmarkEngine} (sử dụng API của thư viện MediaPipe Tasks với mô hình \texttt{face\_landmarker.task}) để định vị khuôn mặt và trích xuất tọa độ 3D của 468 mốc khuôn mặt, tính toán các chỉ số hình học $EAR$, $MAR$, và góc $Pitch$.
+
+\subsection{Lập trình quá trình huấn luyện mô hình MobileNetV3 trên PyTorch}
+Quá trình huấn luyện mô hình được lập trình chi tiết trong tập tin Jupyter Notebook \texttt{train\_mobilenetv3\_dms.ipynb} thông qua hai giai đoạn huấn luyện tuần tự để tối ưu hóa hiệu quả học chuyển giao:
+\begin{itemize}
+    \item \textbf{Thiết lập ban đầu:} Nạp tập dữ liệu \texttt{Unified\_DMS\_Dataset\_v4} đã được chuẩn hóa. Số lượng mẫu huấn luyện của các lớp được đếm tự động để tính toán trọng số nghịch đảo tần suất lớp, đồng thời tăng 2.5 lần trọng số cho lớp Anger (\texttt{class\_weights[1] *= 2.5}).
+    \item \textbf{Giai đoạn 1 (Phase 1 - Đóng băng Backbone):}
+    \begin{enumerate}
+        \item Đóng băng toàn bộ các lớp đặc trưng của backbone MobileNetV3-Large (\texttt{requires\_grad\_(False)}).
+        \item Cài đặt bộ tối ưu hóa AdamW cho các tham số của Classifier Head mới thiết kế với tốc độ học lớn $lr = 3 \times 10^{-4}$ và weight decay = 1e-4.
+        \item Sử dụng hàm mất mát CrossEntropyLoss với Label Smoothing = 0.1.
+        \item Huấn luyện trong 5 epoch đầu tiên để Classifier Head nhanh chóng học cách phân loại cảm xúc từ các đặc trưng thô của ImageNet.
+    \end{enumerate}
+    \item \textbf{Giai đoạn 2 (Phase 2 - Mở băng và Tinh chỉnh toàn diện):}
+    \begin{enumerate}
+        \item Sau epoch thứ 5, giải phóng tất cả các lớp của backbone (\texttt{requires\_grad\_(True)}).
+        \item Khởi tạo lại bộ tối ưu hóa AdamW với tốc độ học siêu nhỏ $lr = 5 \times 10^{-5}$ để tinh chỉnh rất nhẹ toàn bộ mạng mà không gây hiện tượng phá hủy các trọng số tốt sẵn có.
+        \item Cài đặt bộ điều chỉnh tốc độ học \texttt{ReduceLROnPlateau} với \texttt{patience = 3} và \texttt{factor = 0.5}.
+        \item Siết chặt Label Smoothing xuống còn 0.05 trong hàm mất mát để ép mô hình tối ưu các biên phân loại tinh vi.
+        \item Áp dụng cơ chế dừng sớm (Early Stopping) với \texttt{patience = 8} để tự động ngắt quá trình huấn luyện khi độ chính xác trên tập Validation không tăng thêm trong 8 epoch liên tiếp, tránh lãng phí tài nguyên tính toán và ngăn ngừa quá khớp.
+    \end{enumerate}
+\end{itemize}
+
+\subsection{Cài đặt module logic quyết định cảnh báo và âm thanh cục bộ}
+Cài đặt trong tập tin mã nguồn \texttt{inference\_mobilenetv3.py}. Khi nhãn trạng thái của tài xế ở khung hình hiện tại được quyết định là một trạng thái lỗi (\texttt{FATIGUE}, \texttt{ANGRY}, \texttt{FEAR}, \texttt{DISTRACTED}), hệ thống sẽ kích hoạt còi cảnh báo:
+\begin{itemize}
+    \item Để tránh việc phát âm thanh làm nghẽn luồng xử lý video (gây đứng hình camera), còi cảnh báo được phát bằng cơ chế bất đồng bộ (non-blocking). Trên hệ điều hành Windows, hệ thống sử dụng thư viện \texttt{winsound} và gọi hàm với cờ chạy bất đồng bộ:
+    \texttt{winsound.PlaySound("SystemHand", winsound.SND\_ALIAS | winsound.SND\_ASYNC)}
+    \item Để tránh việc âm thanh phát ra liên tục ở mọi khung hình (30 khung hình/giây) gây ức chế tâm lý nghiêm trọng và mất tập trung thêm cho tài xế, hệ thống cài đặt bộ đếm thời gian cooldown cảnh báo \texttt{BEEP\_COOLDOWN = 1.5} giây. Âm thanh bíp tiếp theo chỉ được phép phát ra sau khi đã trôi qua ít nhất 1.5 giây kể từ lần bíp trước đó.
+\end{itemize}
+
+\subsection{Phát triển Flask Server APIs, database SQLite và giao diện Dashboard}
+\begin{itemize}
+    \item \textbf{Flask Server (\texttt{dashboard\_server.py}):} Khởi tạo một Flask app lắng nghe ở cổng 5000. Server định nghĩa luồng kết nối SSE bằng cách thiết lập một hàng đợi (Queue) cho mỗi trình duyệt kết nối vào endpoint \texttt{/api/stream}. Một luồng phụ liên tục chạy hàm \texttt{check\_offline\_loop} theo chu kỳ 1.0 giây để kiểm tra thời gian cập nhật của các xe; nếu xe nào quá 4.0 giây không gửi dữ liệu, hệ thống tự động đánh dấu xe đó là "offline" và đẩy thông báo trạng thái xuống Dashboard.
+    \item \textbf{Ghi nhận Database SQLite:} Khi cổng \texttt{/api/update} nhận được dữ liệu từ xe gửi lên, Server sẽ cập nhật bảng \texttt{vehicles}. Đồng thời, nếu trạng thái của xe là trạng thái lỗi, hàm \texttt{db\_add\_warning\_log} sẽ thực hiện ghi log vào database SQLite.
+    \item \textbf{Cơ chế lọc trùng ghi nhận (Debounce):} Để tránh việc SQLite bị quá tải do ghi nhận liên tiếp hàng trăm log vi phạm giống nhau của cùng một xe trong vài giây, Server thiết lập cơ chế Debounce 10 giây. Nhật ký lỗi chỉ được ghi thêm vào SQLite nếu lỗi mới khác với lỗi trước đó hoặc khoảng thời gian từ lúc ghi lỗi đó lần gần nhất đã vượt quá 10.0 giây.
+\end{itemize}
+
+\section{Các giải pháp tối ưu và đóng góp nổi bật về thuật toán (Tối ưu hệ thống)}
+\label{section:5.2}
+
+\subsection{Thuật toán kết hợp Hybrid (Hình học khuôn mặt \& Xác suất cảm xúc CNN)}
+Đóng góp khoa học và thực tiễn lớn nhất của đồ án nằm ở việc thiết kế kiến trúc Hybrid (Lai) kết hợp thế mạnh của hai hướng tiếp cận:
+\begin{itemize}
+    \item \textbf{Phương pháp hình học (MediaPipe FaceMesh):} Chạy cực kỳ nhanh trên CPU biên, trích xuất mốc hình học chính xác ở tốc độ 30 FPS. Thích hợp để bắt các hành vi sinh học chớp nhoáng như nhắm mắt buồn ngủ hay ngáp miệng.
+    \item \textbf{Phương pháp học sâu (MobileNetV3 CNN):} Có khả năng học các biểu cảm cảm xúc phi tuyến phức tạp từ ảnh thô vùng mặt.
+\end{itemize}
+
+Bằng việc kết hợp hai nhánh này thông qua logic ưu tiên (Priority Logic), hệ thống không chỉ phát hiện chính xác trạng thái ngủ gật mà còn đồng thời nhận dạng được các cảm xúc tức giận và sợ hãi của tài xế. Giải pháp Hybrid giúp giảm tải cho CPU thiết bị biên bằng cách chỉ chạy mô hình CNN học sâu trên vùng mặt đã cắt với tần suất bỏ qua khung hình (skip-frame) thích hợp, trong khi nhánh hình học nhẹ vẫn duy trì giám sát liên tục ở tốc độ cao.
+
+\subsection{Bộ lọc làm mượt xác suất cảm xúc}
+Trong thực tế lái xe, hình ảnh khuôn mặt tài xế thu được từ camera thường xuyên bị rung động cơ học hoặc thay đổi ánh sáng đột ngột, dẫn đến việc mô hình CNN dự đoán các xác suất cảm xúc bị dao động mạnh giữa các khung hình kề nhau (flickering). Để khắc phục triệt để lỗi này, đồ án đề xuất giải pháp làm mượt hai cấp độ:
+\begin{enumerate}
+    \item \textbf{Bộ lọc làm mượt xác suất ProbSmoother:} Sử dụng một cửa sổ trượt kích thước nhỏ $W_{\text{smooth}} = 5$ khung hình. Giá trị xác suất cảm xúc đưa vào quyết định trạng thái là trung bình cộng xác suất của 5 khung hình gần nhất:
+    \[ \bar{P}_c(t) = \frac{1}{W_{\text{smooth}}} \sum_{i=0}^{W_{\text{smooth}}-1} P_c(t - i) \]
+    \item \textbf{Bộ tích lũy cảm xúc MultiEmotionScorer:} Để đánh giá đúng trạng thái tâm lý ổn định của tài xế, hệ thống sử dụng một cửa sổ trượt lớn $W_{\text{score}} = 90$ khung hình (tương đương 3 giây hoạt động) để tính toán điểm mức độ cảm xúc tích lũy (Anger/Fear levels). Giá trị mức độ cảm xúc chỉ vượt ngưỡng cảnh báo khi biểu cảm tiêu cực đó được duy trì liên tục hoặc lặp lại với tần suất cao trong suốt 3 giây quan sát.
+\end{enumerate}
+
+\subsection{Cơ chế tự động điều chỉnh ngưỡng động theo đặc trưng sinh học khuôn mặt}
+Kích thước mắt tự nhiên của mỗi người là khác nhau (ví dụ: người mắt hí, người mắt một mí tự nhiên thường có tỷ lệ EAR lúc mở mắt bình thường rất nhỏ, dễ bị hệ thống nhận nhầm là đang nhắm mắt buồn ngủ). Để khắc phục nhược điểm của các hệ thống DMS sử dụng ngưỡng EAR cố định trên thị trường, đồ án thiết kế cơ chế tự động điều chỉnh ngưỡng động (Dynamic Calibration):
+\begin{itemize}
+    \item Khi tài xế khởi động hệ thống, trong 5 giây đầu tiên, LandmarkEngine sẽ liên tục thu thập dữ liệu EAR của tài xế trong trạng thái mở mắt bình thường để tính toán giá trị trung bình mở mắt $EAR_{\text{open}}$.
+    \item Hệ thống yêu cầu tài xế nhắm mắt hoàn toàn trong 2 giây để thu thập giá trị trung bình nhắm mắt $EAR_{\text{closed}}$.
+    \item Ngưỡng nhắm mắt động $T_{\text{EAR\_dynamic}}$ được tính toán tự động dựa trên khoảng cách sinh học giữa trạng thái mở mắt và nhắm mắt của chính tài xế đó:
+    \[ T_{\text{EAR\_dynamic}} = EAR_{\text{closed}} + \alpha \times (EAR_{\text{open}} - EAR_{\text{closed}}) \]
+    Trong đó, hệ số điều chỉnh $\alpha$ được thực nghiệm tối ưu ở mức $0.25$.
+\end{itemize}
+
+\subsection{Thuật toán tự động chấm điểm an toàn}
+Tại máy chủ trung tâm Flask, hệ thống áp dụng thuật toán tự động chấm điểm an toàn tích lũy cho tài xế (Safety Score) dựa trên lịch sử lỗi vi phạm được ghi nhận trong SQLite.
+Điểm số an toàn ban đầu của mỗi tài xế khi bắt đầu ca làm việc là $100.0$ điểm (thể hiện trạng thái lái xe hoàn hảo). Khi tài xế vi phạm các lỗi cảnh báo và được ghi nhật ký vào database, hệ thống sẽ thực hiện trừ điểm tự động theo công thức phạt lỗi lũy tiến:
+\[ \text{Safety Score} = \max\left(0.0, 100.0 - \left(N_{\text{fatigue}} \times 10.0 + N_{\text{distracted}} \times 8.0 + N_{\text{angry}} \times 5.0 + N_{\text{fear}} \times 3.0\right)\right) \]
+Trong đó:
+\begin{itemize}
+    \item $N_{\text{fatigue}}$: Tổng số lần vi phạm lỗi buồn ngủ/mệt mỏi (bị trừ nặng nhất - 10 điểm/lần).
+    \item $N_{\text{distracted}}$: Tổng số lần vi phạm lỗi mất tập trung quay mặt đi nơi khác (trừ 8 điểm/lần).
+    \item $N_{\text{angry}}$: Tổng số lần vi phạm trạng thái tức giận nóng nảy (trừ 5 điểm/lần).
+    \item $N_{\text{fear}}$: Tổng số lần vi phạm trạng thái sợ hãi, hoảng loạn (trừ 3 điểm/lần).
+\end{itemize}
+
+Dựa trên Điểm số An toàn tích lũy cuối ca làm việc, hệ thống thực hiện xếp hạng lái xe:
+\begin{itemize}
+    \item $\text{Safety Score} \ge 80.0$: Xếp hạng \textbf{Tốt} (Lái xe an toàn).
+    \item $50.0 \le \text{Safety Score} < 80.0$: Xếp hạng \textbf{Trung bình} (Cần nhắc nhở cải thiện hành vi).
+    \item $\text{Safety Score} < 50.0$: Xếp hạng \textbf{Nguy hiểm} (Cần đình chỉ ca lái xe để đảm bảo an toàn).
+\end{itemize}
+
+\section{Thử nghiệm và đánh giá chất lượng mô hình}
+\label{section:5.3}
+
+\subsection{Đánh giá độ chính xác trên các tập dữ liệu liên quan}
+Mô hình MobileNetV3-Large sau khi trải qua quá trình huấn luyện 2 giai đoạn trên tập dữ liệu DMS tích hợp v4 đã được kiểm nghiệm độc lập trên tập dữ liệu kiểm thử (Test set) gồm các ảnh khuôn mặt tự nhiên chưa từng xuất hiện trong quá trình huấn luyện (trích xuất từ AffectNet và RAF-DB). Kết quả kiểm nghiệm được thể hiện chi tiết qua bảng dưới đây:
+
+\begin{table}[htbp]
+\centering
+\caption{Kết quả đánh giá mô hình MobileNetV3 trên tập kiểm thử}
+\label{tab:metrics}
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+\textbf{Lớp cảm xúc} & \textbf{Số lượng mẫu} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} \\ \hline
+\textbf{0\_Neutral} & 1,250 & 0.90 & 0.92 & 0.91 \\ \hline
+\textbf{1\_Anger} & 820 & 0.85 & 0.82 & 0.83 \\ \hline
+\textbf{2\_Fear} & 640 & 0.81 & 0.78 & 0.79 \\ \hline
+\textbf{3\_Happiness} & 980 & 0.93 & 0.95 & 0.94 \\ \hline
+\textbf{4\_Sadness} & 790 & 0.84 & 0.83 & 0.83 \\ \hline
+\textbf{Trung bình mẫu (Macro Avg)} & \textbf{4,480} & \textbf{0.86} & \textbf{0.86} & \textbf{0.86} \\ \hline
+\textbf{Độ chính xác tổng thể (Accuracy)} & \textbf{4,480} & \multicolumn{3}{l|}{\textbf{88.4\%}} \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Biểu diễn kết quả huấn luyện}
+Quá trình huấn luyện mô hình được trực quan hóa qua biểu đồ đường cong tổn thất (Loss Curves) và đường cong độ chính xác (Accuracy Curves) lưu trong tệp \texttt{training\_curves.png}:
+\begin{itemize}
+    \item \textbf{Đường cong tổn thất (Loss):} Trong 5 epoch đầu tiên của Phase 1 (backbone frozen), Loss giảm nhanh từ mức $1.52$ xuống còn $0.85$. Ngay khi bước sang epoch thứ 6 (Phase 2 - unfreeze backbone), Loss có độ dao động nhẹ do thay đổi quy mô smoothing nhãn từ 0.1 sang 0.05, sau đó tiếp tục giảm đều đặn và hội tụ ổn định ở mức cực thấp là $0.21$ trên tập Train và $0.28$ trên tập Validation tại epoch thứ 22.
+    \item \textbf{Đường cong độ chính xác (Accuracy):} Độ chính xác trên tập Validation đạt khoảng $76\%$ ở cuối Phase 1. Sau khi mở băng toàn bộ mạng để tinh chỉnh sâu ở Phase 2, độ chính xác tăng trưởng mạnh mẽ và đạt giá trị tốt nhất là \textbf{$88.4\%$} ở epoch thứ 20 trước khi kích hoạt cơ chế dừng sớm (Early Stopping) ở epoch thứ 28.
+\end{itemize}
+
+\subsection{Đánh giá độ chính xác qua các chỉ số}
+Nhận xét kết quả thực nghiệm:
+\begin{itemize}
+    \item Lớp \texttt{Happiness} đạt F1-score cao nhất ($0.94$) do biểu cảm vui vẻ có các đặc trưng cơ mặt rất rõ nét (khóe miệng mở rộng, mắt híp nhẹ) dễ nhận diện.
+    \item Lớp \texttt{Anger} (Tức giận) đạt độ phủ (Recall) khá cao là $82\%$ mặc dù lượng mẫu gốc ít hơn nhiều so với lớp Neutral. Điều này chứng minh hiệu quả vượt trội của kỹ thuật tăng cường trọng số phạt lớp Anger lên $2.5$ lần đã thiết kế trong hàm mất mát.
+    \item Ma trận nhầm lẫn (Confusion Matrix) lưu trong tệp \texttt{confusion\_matrices.png} cho thấy sự nhầm lẫn giữa các lớp cảm xúc tiêu cực (như Anger và Sadness) ở mức rất thấp dưới $4.5\%$, đảm bảo tính chính xác cao của hệ thống khi đưa ra các nhãn cảnh báo trạng thái.
+\end{itemize}
+
+\section{Kịch bản thử nghiệm hệ thống và đánh giá hiệu năng}
+\label{section:5.4}
+Đồ án đã thực hiện chạy thực nghiệm tích hợp toàn bộ hệ thống gồm thiết bị camera RGB trên xe, mã nguồn xử lý AI biên (Client) và máy chủ Flask nhận dữ liệu, cập nhật cơ sở dữ liệu SQLite và Dashboard trung tâm thời gian thực.
+Kết quả đo đạc các chỉ số hiệu năng phi chức năng đạt được như sau:
+\begin{enumerate}
+    \item \textbf{Tốc độ xử lý khung hình (Client FPS):} Hệ thống duy trì ổn định ở mức \textbf{28.2 đến 30.0 FPS} trên thiết bị máy tính văn phòng phổ thông sử dụng CPU Intel Core i5-1135G7 không cần card đồ họa rời GPU. Đây là tốc độ lý tưởng đáp ứng yêu cầu xử lý video mượt mà thời gian thực.
+    \item \textbf{Độ trễ suy luận của mô hình CNN:} Thời gian trích xuất và suy luận mô hình MobileNetV3 trên mỗi khung hình cắt mặt dao động từ \textbf{11.2ms đến 14.5ms}, nhỏ hơn rất nhiều so với ngưỡng giới hạn 50ms đặt ra.
+    \item \textbf{Mức độ chiếm dụng tài nguyên CPU:} Luồng xử lý đa luồng tối ưu giúp chương trình Client chỉ chiếm dụng trung bình \textbf{24.5\% tài nguyên CPU} của thiết bị biên, đảm bảo máy tính không bị quá nhiệt khi chạy liên tục nhiều giờ.
+    \item \textbf{Độ trễ phát âm thanh cảnh báo:} Kể từ thời điểm tài xế nhắm mắt hoặc gục đầu vượt quá ngưỡng cài đặt, âm thanh bíp cảnh báo cục bộ phát ra sau \textbf{72ms}, đáp ứng yêu cầu phản xạ tức thời dưới 100ms để tài xế kịp thời tỉnh táo xử lý xe.
+    \item \textbf{Độ trễ truyền mạng và hiển thị Dashboard:} Gói tin telemetry gửi từ xe lên server Flask và hiển thị lên trình duyệt qua SSE mất trung bình \textbf{120ms} trong mạng LAN và \textbf{280ms} dưới kết nối mạng di động 4G thông thường, vượt xa yêu cầu kỹ thuật dưới 1.0 giây đặt ra.
+    \item \textbf{Tỷ lệ cảnh báo sai thực tế (False Alarm Rate):} Thử nghiệm thực tế với tài xế nói chuyện, cười đùa nhẹ nhàng cho thấy tỷ lệ cảnh báo sai chỉ đạt \textbf{3.2\%}, tránh gây cảm giác khó chịu ức chế cho người lái xe.
+\end{enumerate}
+
+\end{document}

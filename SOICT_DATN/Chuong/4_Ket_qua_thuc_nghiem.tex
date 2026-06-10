@@ -1,0 +1,175 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\section{Sơ đồ tổng thể hệ thống nhận dạng biểu cảm khuôn mặt tài xế lái xe, phát hiện cảm xúc tiêu cực và cảnh báo}
+\label{section:4.1}
+Phần này trình bày sơ đồ các thành phần hệ thống và luồng hoạt động theo các quy trình nghiệp vụ của hệ thống.
+% (Sinh viên có thể bổ sung hình ảnh và mô tả chi tiết sơ đồ tổng thể ở đây)
+
+\section{Thiết kế Pipeline xử lý tổng thể của hệ thống}
+\label{section:4.2}
+
+\subsection{Sơ đồ luồng xử lý thời gian thực từ camera hành trình đến bộ cảnh báo tại thiết bị mobile trên xe}
+Hệ thống DMS Central được thiết kế vận hành theo một Pipeline tuần tự chặt chẽ, tối ưu hóa tối đa khả năng xử lý song song để đạt tốc độ xử lý thời gian thực 30 FPS. Dưới đây là sơ đồ luồng hoạt động tổng thể của hệ thống:
+
+\begin{figure}[htbp]
+\centering
+\caption{Sơ đồ luồng xử lý thời gian thực từ camera hành trình đến bộ cảnh báo}
+\label{fig:pipeline}
+% Gợi ý biên dịch: Có thể sử dụng gói tikz hoặc chèn ảnh sơ đồ vẽ ngoài vào đây
+% \includegraphics[width=\textwidth]{images/pipeline.png}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{Bước 1:} Đọc khung hình từ camera hành trình dạng BGR thông qua đa luồng (Multi-threaded Capture) đưa vào hàng đợi Frame Queue.
+    \item \textbf{Bước 2:} Luồng xử lý chính đọc khung hình từ hàng đợi đưa qua LandmarkEngine (MediaPipe FaceMesh) để kiểm tra phát hiện mặt.
+    \item \textbf{Bước 3:} Nếu không phát hiện khuôn mặt quá 2.0s, lập tức kích hoạt trạng thái \texttt{DISTRACTED} (mất tập trung).
+    \item \textbf{Bước 4:} Nếu phát hiện khuôn mặt, trích xuất Bounding Box và 468 mốc khuôn mặt, chia thành hai nhánh xử lý song song:
+    \begin{itemize}
+        \item \textit{Nhánh hình học:} Tính toán EAR, MAR, Pitch và cập nhật vào FatigueMetrics thông qua cửa sổ trượt 150 frames để xác định chỉ số $F_{\text{score}}$ (PERCLOS-based).
+        \item \textit{Nhánh học sâu:} Cắt ảnh khuôn mặt (Face Crop), đưa qua các bước tiền xử lý (Grayscale + CLAHE + Resize 224x224) và chuyển qua mô hình CNN MobileNetV3 phân loại cảm xúc. Xác suất thô ngõ ra được làm mượt qua ProbSmoother (window 5) và MultiEmotionScorer (window 90).
+    \end{itemize}
+    \item \textbf{Bước 5:} Đưa các kết quả $F_{\text{score}}$, Anger Level và Fear Level vào bộ logic quyết định \texttt{decide\_state} để cho ra nhãn trạng thái tài xế cuối cùng.
+    \item \textbf{Bước 6:} Nếu phát hiện trạng thái lỗi, phát âm thanh cảnh báo cục bộ qua loa cabin (winsound) và gửi gói tin JSON lên Flask Server trung tâm qua HTTP POST.
+    \item \textbf{Bước 7:} Flask Server nhận gói tin, thực hiện lưu log vào database SQLite (qua bộ lọc Debounce 10s) và phát tín hiệu SSE (Server-Sent Events) để cập nhật thời gian thực lên Dashboard.
+\end{itemize}
+
+\subsection{Luồng xử lý offline các clip video từ camera tại trung tâm (server)}
+Hệ thống không chỉ xử lý trực tiếp trên xe (Client) mà còn hỗ trợ khả năng phân tích offline tại máy chủ trung tâm đối với các đoạn video ghi hình được lưu lại từ camera hành trình. Các đoạn video này được tải lên server và đưa qua một Pipeline phân tích chuyên sâu nhằm tái hiện lại trạng thái của tài xế trước thời điểm xảy ra sự cố, phục vụ công tác điều tra và hậu kiểm đánh giá hành vi lái xe.
+
+\subsection{Mô tả các giai đoạn luân chuyển và biến đổi dữ liệu}
+Dữ liệu đi qua Pipeline của hệ thống được biến đổi liên tục qua các giai đoạn sau:
+\begin{enumerate}
+    \item \textbf{Giai đoạn Thu nhận (Input Stage):} Luồng camera đọc luồng video thô từ phần cứng thành một chuỗi các ma trận ảnh BGR kích thước $640 \times 480 \times 3$ trong một luồng (thread) chạy nền độc lập.
+    \item \textbf{Giai đoạn Trích xuất mốc (Landmark Stage):} Ma trận BGR được chuyển sang RGB để đưa vào MediaPipe FaceMesh. Kết quả trả về là một danh sách tọa độ của 468 mốc khuôn mặt và hộp bao khuôn mặt (Bounding Box).
+    \item \textbf{Giai đoạn Tính toán đặc trưng hình học (Geometric Feature Stage):} Tọa độ các điểm mốc được đưa vào công thức toán học để tính ra 3 giá trị vô hướng: $EAR$ (float), $MAR$ (float), và $Pitch$ (float). Các giá trị này được cập nhật liên tục vào danh sách lịch sử của \texttt{FatigueMetrics} để tính chỉ số $F_{\text{score}}$ (tổng hợp từ PERCLOS, tần suất ngáp và tần suất gật đầu).
+    \item \textbf{Giai đoạn Tiền xử lý \& Học sâu (Preprocessing \& CNN Stage):} Vùng ảnh chứa khuôn mặt được cắt ra dựa trên Bounding Box, chuyển thành ảnh Grayscale, áp dụng cân bằng histogram CLAHE, resize về kích thước chuẩn $224 \times 224 \times 3$, và chuẩn hóa màu theo ImageNet. Mạng MobileNetV3 thực hiện suy luận để xuất ra vector Logits 5 chiều tương ứng với 5 lớp cảm xúc, sau đó đi qua hàm Softmax để chuyển đổi thành vector xác suất.
+    \item \textbf{Giai đoạn Làm mượt và Quyết định (Smoothing \& Decision Stage):} Xác suất cảm xúc thô được đưa qua \texttt{ProbSmoother} và \texttt{MultiEmotionScorer} để tính giá trị trung bình trượt. Bộ logic tích hợp sẽ so khớp các giá trị $F_{\text{score}}$, $AngerLevel$, $FearLevel$ với các ngưỡng cảnh báo tương ứng để xác định một nhãn chuỗi duy nhất: \texttt{NORMAL}, \texttt{FATIGUE}, \texttt{ANGRY}, \texttt{FEAR}, hoặc \texttt{DISTRACTED}.
+    \item \textbf{Giai đoạn Truyền thông và Trực quan (Communication Stage):} Nhãn trạng thái và các thông số đi kèm được đóng gói thành định dạng JSON và truyền tải qua giao thức HTTP POST lên máy chủ Flask. Máy chủ lọc trùng dữ liệu (Debounce), ghi vào SQLite, và đẩy dữ liệu JSON này xuống Dashboard qua luồng SSE dạng chuỗi văn bản UTF-8 kết nối liên tục.
+\end{enumerate}
+
+\section{Thiết kế chi tiết các khối xử lý và xây dựng bộ dữ liệu}
+\label{section:4.3}
+
+\subsection{Phương pháp tái cấu trúc và gom nhóm dữ liệu để tối ưu hóa khả năng học của mạng}
+Do các bộ dữ liệu khuôn mặt và trạng thái lái xe trên thế giới được thu thập từ nhiều nguồn khác nhau với hệ thống gán nhãn không đồng nhất, đồ án đã thiết kế giải pháp tái cấu trúc và gom nhóm dữ liệu. Các nhãn cảm xúc phức tạp hoặc ít liên quan đến hành vi lái xe an toàn như "Ngạc nhiên" (Surprise) và "Ghê tởm" (Disgust) được lược bỏ hoặc gom nhóm để tập trung tối đa năng lực học của mô hình vào 5 lớp cảm xúc cốt lõi:
+\begin{itemize}
+    \item \texttt{0\_Neutral} (Bình thường): Gồm các ảnh biểu cảm tự nhiên, thư giãn của tài xế.
+    \item \texttt{1\_Anger} (Tức giận): Tập trung các ảnh tức giận từ RAF-DB, AffectNet và MLI-DER biểu thị sự ức chế, bực bội (Road Rage).
+    \item \texttt{2\_Fear} (Sợ hãi): Tập trung các ảnh thể hiện sự hoảng hốt, sợ hãi khi gặp tình huống va chạm khẩn cấp.
+    \item \texttt{3\_Happiness} (Vui vẻ): Trạng thái tích cực bình thường của tài xế.
+    \item \texttt{4\_Sadness} (Buồn bã): Trạng thái uể oải, buồn ngủ nhẹ, mệt mỏi thể chất.
+\end{itemize}
+
+Quá trình gom nhóm được tự động hóa bằng tập lệnh Python \texttt{data\_preprocessing.py}, quét qua thư mục gốc của các dataset, ánh xạ mã nhãn tương ứng về 5 thư mục lớp đích để chuẩn bị cho quá trình huấn luyện.
+
+\subsection{Thiết kế giải pháp phát hiện và bám sát khuôn mặt}
+Để đảm bảo vùng khuôn mặt được cắt chính xác làm đầu vào cho mô hình CNN, hệ thống tích hợp bộ phát hiện khuôn mặt BlazeFace phiên bản rút gọn (\texttt{blaze\_face\_short\_range.tflite}).
+Mô hình này hoạt động dựa trên các lớp tích chập nhẹ, tối ưu hóa cho bài toán phát hiện khuôn mặt cự ly gần trong cabin xe. Khi tìm thấy khuôn mặt, hệ thống thu nhận tọa độ hộp bao và liên tục bám sát (tracking) khuôn mặt qua từng khung hình. Nếu tọa độ hộp bao bị thay đổi đột ngột hoặc mất nhận diện tạm thời (dưới 2.0 giây) do tài xế quay mặt quá nhanh, hệ thống sẽ tự động sử dụng vị trí khuôn mặt ở khung hình trước đó để tránh việc gián đoạn khung hình xử lý.
+
+\subsection{Thiết kế quy trình tiền xử lý ảnh đầu vào}
+Ảnh khuôn mặt của tài xế trong cabin ô tô thường chịu ảnh hưởng nặng nề bởi sự thay đổi cường độ ánh sáng (ví dụ: nắng chiếu một bên mặt, đi qua đường hầm tối, lái xe ban đêm). Đồ án thiết kế quy trình tiền xử lý ảnh đầu vào chi tiết như sau:
+\begin{enumerate}
+    \item \textbf{Cắt khuôn mặt với đệm biên (Face Crop with Padding):} Hộp bao từ bộ phát hiện khuôn mặt được mở rộng thêm một khoảng đệm bằng $20\%$ kích thước hộp bao (\texttt{pad = 0.20}). Điều này đảm bảo ảnh cắt không bị mất phần tai, cằm và trán của tài xế khi nghiêng đầu.
+    \item \textbf{Chuyển đổi Grayscale:} Chuyển đổi vùng ảnh cắt từ hệ màu RGB sang Grayscale để triệt tiêu ảnh hưởng của sự thay đổi màu sắc ánh sáng nhân tạo.
+    \item \textbf{Cân bằng Histogram cục bộ (CLAHE):} Áp dụng thuật toán CLAHE (Contrast Limited Adaptive Histogram Equalization) với thông số giới hạn cắt \texttt{clipLimit = 2.0} và kích thước ô lưới \texttt{tileGridSize = (8, 8)}. CLAHE giúp tăng cường độ tương phản cho các vùng tối của khuôn mặt (như vùng mắt khi tài xế đeo kính hoặc đội mũ) mà không làm cháy sáng các vùng khác.
+    \item \textbf{Nhân bản kênh màu \& Resize:} Nhân bản kênh xám vừa xử lý thành 3 kênh xám giống nhau để giữ nguyên định dạng ngõ vào 3 kênh của MobileNetV3, sau đó thay đổi kích thước ảnh về chuẩn $224 \times 224$ pixel.
+    \item \textbf{Chuẩn hóa dữ liệu (Normalization):} Áp dụng phép toán chuẩn hóa trừ giá trị trung bình (mean) và chia cho độ lệch chuẩn (std) của ImageNet giúp tăng tốc độ hội tụ của mô hình trong quá trình huấn luyện và suy luận.
+\end{enumerate}
+
+\subsection{Thiết kế các kỹ thuật tăng cường và cân bằng dữ liệu}
+\begin{itemize}
+    \item \textbf{Tăng cường dữ liệu (Data Augmentation):} Nhằm nâng cao khả năng tổng quát hóa của mô hình đối với các tài xế khác nhau và các góc camera khác nhau, đồ án áp dụng chuỗi biến đổi ngẫu nhiên mạnh mẽ trong PyTorch \texttt{transforms.Compose} cho tập dữ liệu huấn luyện:
+    \begin{itemize}
+        \item \texttt{Resize((256, 256))} sau đó \texttt{RandomCrop(224)} nhằm tạo ra các biến thể phóng to, thu nhỏ.
+        \item \texttt{RandomHorizontalFlip(p=0.5)} mô phỏng việc đặt camera ở bên trái hoặc bên phải tài xế.
+        \item \texttt{RandomRotation(degrees=8)} mô phỏng trạng thái tài xế nghiêng đầu sang hai bên.
+        \item \texttt{ColorJitter} ngẫu nhiên thay đổi độ sáng, độ tương phản và độ bão hòa.
+        \item \texttt{RandomPerspective} thay đổi phối cảnh góc nhìn khuôn mặt.
+        \item \texttt{RandomErasing(p=0.02)} ngẫu nhiên xóa đi một vùng ảnh nhỏ để ép mạng nơ-ron học các đặc trưng phân tán của khuôn mặt thay vì chỉ tập trung vào một vùng duy nhất.
+    \end{itemize}
+    \item \textbf{Cân bằng dữ liệu (Class Balancing):} Do số lượng ảnh của lớp \texttt{Neutral} chiếm đa số tuyệt đối, đồ án áp dụng phương pháp gán trọng số lớp nghịch đảo tần suất (Inverse-frequency class weighting) trong hàm mất mát CrossEntropyLoss. Đặc biệt, để nâng cao độ nhạy đối với hành vi tức giận (lớp gây rủi ro tai nạn cao nhất), đồ án tăng cường trọng số của lớp \texttt{Anger} lên gấp $2.5$ lần so với công thức cân bằng chuẩn:
+    \[ w_c = \frac{1}{N_c \sum_{j} \frac{1}{N_j}} \times C \]
+    Sau đó:
+    \[ w_{\text{Anger}} = w_{\text{Anger}} \times 2.5 \]
+\end{itemize}
+
+\section{Thiết kế triển khai mô hình học sâu CNN MobileNetV3}
+\label{section:4.4}
+
+\subsection{Thiết kế sơ đồ kiến trúc mạng MobileNetV3 phân loại cảm xúc}
+Mạng MobileNetV3-Large nguyên bản được thiết kế để phân loại 1000 lớp đối tượng trên tập dữ liệu ImageNet. Để áp dụng cho bài toán nhận diện cảm xúc 5 lớp của tài xế, đồ án thay đổi thiết kế của lớp phân loại ở cuối mạng (Classifier Head) như sau:
+\begin{itemize}
+    \item \textbf{Backbone:} Giữ nguyên toàn bộ các khối tích chập trích xuất đặc trưng sâu (từ Layer 1 đến Layer 15 của MobileNetV3-Large).
+    \item \textbf{Classifier Head (Khối phân loại thiết kế mới):} Lấy đầu ra từ lớp Pooling toàn cục (Global Average Pooling) có kích thước kênh là 1280, đi qua khối Sequential gồm:
+    \begin{enumerate}
+        \item Lớp tuyến tính (\texttt{nn.Linear(in\_features, 256)}) để nén số kênh từ 1280 xuống 256.
+        \item Hàm kích hoạt phi tuyến (\texttt{nn.Hardswish()}) để tăng tính phi tuyến của bộ phân loại.
+        \item Lớp chống quá khớp (\texttt{nn.Dropout(p=0.3)}) giúp ngắt ngẫu nhiên 30\% kết nối của các nơ-ron trong quá trình huấn luyện.
+        \item Lớp tuyến tính ngõ ra (\texttt{nn.Linear(256, 5)}) để đưa ra điểm số (logits) của 5 lớp cảm xúc tài xế.
+    \end{enumerate}
+\end{itemize}
+
+\subsection{Thiết kế hàm mất mát và bộ tối ưu hóa}
+\begin{itemize}
+    \item \textbf{Hàm mất mát (Loss Function):} Sử dụng hàm mất mát Cross Entropy đa lớp kết hợp với kỹ thuật làm mịn nhãn (Label Smoothing) và trọng số lớp đã thiết kế ở trên:
+    \begin{itemize}
+        \item \textit{Phase 1:} Áp dụng Label Smoothing = 0.1 nhằm làm giảm độ tự tin thái quá của mô hình khi backbone bị đóng băng.
+        \item \textit{Phase 2:} Áp dụng Label Smoothing = 0.05 khi giải phóng backbone để tinh chỉnh sâu, giúp mô hình tập trung vào việc phân biệt các mẫu khó ở biên quyết định.
+    \end{itemize}
+    \item \textbf{Bộ tối ưu hóa (Optimizer):} Sử dụng thuật toán AdamW (Adam với cơ chế suy giảm trọng số --- Weight Decay = 1e-4) giúp ổn định trọng số mạng và ngăn ngừa overfitting hiệu quả hơn Adam truyền thống.
+    \item \textbf{Tốc độ học (Learning Rate) \& Bộ điều chỉnh (Scheduler):}
+    \begin{itemize}
+        \item \textit{Phase 1 (Backbone frozen):} Thiết lập $lr = 3 \times 10^{-4}$ để huấn luyện nhanh Classifier Head mới.
+        \item \textit{Phase 2 (Backbone unfrozen):} Thiết lập $lr = 5 \times 10^{-5}$ để tinh chỉnh rất nhẹ các trọng số của backbone mà không làm hỏng tri thức tiền huấn luyện ImageNet.
+        \item \textit{LR Scheduler:} Áp dụng \texttt{ReduceLROnPlateau} giám sát độ chính xác của tập validation (\texttt{val\_acc}). Nếu sau 3 epoch liên tiếp độ chính xác không cải thiện, tốc độ học sẽ giảm đi một nửa (\texttt{factor = 0.5}).
+    \end{itemize}
+\end{itemize}
+
+\section{Thiết kế chi tiết khối quyết định cảnh báo}
+\label{section:4.5}
+
+\subsection{Thiết kế tập luật logic tích hợp chỉ số hình học và xác suất cảm xúc CNN}
+Để đảm bảo tính chính xác cao nhất và giảm thiểu tối đa hiện tượng báo động sai gây khó chịu cho người lái, hệ thống thiết kế một tập luật quyết định logic tích hợp có phân cấp độ ưu tiên (Priority Decision Logic):
+\begin{enumerate}
+    \item \textbf{Mất nhận dạng khuôn mặt (DISTRACTED):} Nếu bộ trích xuất mốc hình học thông báo không tìm thấy khuôn mặt trong khoảng thời gian vượt quá \texttt{face\_lost\_timeout = 2.0} giây, hệ thống lập tức kết luận trạng thái là \texttt{DISTRACTED} và phát âm thanh cảnh báo.
+    \item \textbf{Mệt mỏi và buồn ngủ (FATIGUE):} Nhãn trạng thái có độ ưu tiên cao nhất khi có mặt tài xế. Nếu giá trị $F_{\text{score}} > 0.30$, hệ thống lập tức kết luận trạng thái tài xế là \texttt{FATIGUE} mà không cần xét các chỉ số cảm xúc khác.
+    \item \textbf{Tức giận (ANGRY):} Nếu không buồn ngủ, hệ thống kiểm tra mức độ tức giận tích lũy. Nếu $AngerLevel > 0.25$, hệ thống đưa ra nhãn cảnh báo \texttt{ANGRY} (tài xế đang căng thẳng, tức giận).
+    \item \textbf{Sợ hãi (FEAR):} Nếu không buồn ngủ và không tức giận, kiểm tra mức độ sợ hãi. Nếu $FearLevel > 0.25$, hệ thống đưa ra nhãn cảnh báo \texttt{FEAR} (tài xế đang hoảng loạn, sợ hãi).
+    \item \textbf{Bình thường (NORMAL):} Các trường hợp còn lại được coi là trạng thái lái xe an toàn bình thường.
+\end{enumerate}
+
+\subsection{Thiết kế cơ chế cửa sổ thời gian đảm bảo độ tin cậy cảnh báo}
+Để tránh việc nháy mắt ngẫu nhiên hoặc cử động mặt bất ngờ gây ra báo động giả (flickering), hệ thống sử dụng các cơ chế lưu vết chuỗi thời gian:
+\begin{itemize}
+    \item \textbf{Cửa sổ hình học:} Cửa sổ trượt \texttt{FATIGUE\_WINDOW\_SIZE = 150} khung hình (tương đương 5 giây hoạt động ở tốc độ 30 FPS) lưu trữ chuỗi thời gian của $EAR$, $MAR$, và $Pitch$ để tính chỉ số PERCLOS và đếm số lần chớp mắt, ngáp ngủ, gật đầu trong vòng 5 giây gần nhất.
+    \item \textbf{Cửa sổ cảm xúc:} Cửa sổ trượt \texttt{EMOTION\_WINDOW\_SIZE = 90} khung hình (tương đương 3 giây hoạt động) lưu trữ chuỗi giá trị xác suất ngõ ra của CNN để tính giá trị trung bình trượt của $AngerLevel$ và $FearLevel$ trong vòng 3 giây gần nhất.
+\end{itemize}
+
+\section{Thiết kế kiến trúc phần mềm và cơ sở dữ liệu}
+\label{section:4.6}
+
+\subsection{Thiết kế kiến trúc sơ đồ luồng dữ liệu}
+Hệ thống hoạt động theo mô hình Client - Server thông qua giao thức truyền thông HTTP và luồng đẩy dữ liệu SSE:
+\begin{itemize}
+    \item \textbf{Client-side (Thiết bị biên trên xe):} Chạy mã nguồn xử lý ảnh và suy luận AI thời gian thực. Sau mỗi khung hình xử lý, Client đóng gói thông tin trạng thái thành gói tin JSON và gửi bất đồng bộ (non-blocking thread) lên máy chủ bằng phương thức \texttt{HTTP POST} đến địa chỉ \texttt{/api/update}.
+    \item \textbf{Server-side (Máy chủ điều hành trung tâm):} Nhận gói tin POST, phân tích dữ liệu, cập nhật bảng SQLite lưu trữ vĩnh viễn, đồng thời đẩy dữ liệu này vào hàng đợi hàng ngang (queue) của luồng SSE.
+    \item \textbf{Browser Dashboard (Màn hình giám sát từ xa):} Dashboard giám sát kết nối với máy chủ qua đường dẫn SSE \texttt{/api/stream} để nhận dữ liệu đẩy tự động dưới dạng luồng sự kiện (event stream) và cập nhật giao diện hiển thị ngay lập tức.
+\end{itemize}
+
+\subsection{Thiết kế mô hình dữ liệu quan hệ SQLite}
+Cơ sở dữ liệu SQLite được lưu trữ dưới dạng một tệp cơ sở dữ liệu duy nhất \texttt{dms\_database.db} gồm hai bảng dữ liệu quan hệ chính:
+\begin{itemize}
+    \item \textbf{Bảng \texttt{vehicles}:} Quản lý danh sách các phương tiện trong hệ thống và thời điểm cuối cùng xe gửi dữ liệu về máy chủ (\texttt{last\_seen}). Khóa chính là \texttt{vehicle\_id} (Biển số xe). Các trường dữ liệu gồm: \texttt{vehicle\_id} (TEXT, PK), \texttt{driver\_name} (TEXT), \texttt{last\_seen} (REAL).
+    \item \textbf{Bảng \texttt{warning\_logs}:} Nhật ký lưu trữ chi tiết các lỗi vi phạm của tài xế. Mỗi bản ghi chứa thông tin về biển số xe, tên tài xế, loại trạng thái lỗi vi phạm, các chỉ số đo lường chi tiết và mốc thời gian xảy ra lỗi. Khóa ngoại \texttt{vehicle\_id} liên kết trực tiếp với bảng \texttt{vehicles}. Các trường gồm: \texttt{id} (INTEGER, PK, AUTOINCREMENT), \texttt{vehicle\_id} (TEXT), \texttt{driver\_name} (TEXT), \texttt{state} (TEXT), \texttt{f\_score} (REAL), \texttt{anger\_level} (REAL), \texttt{fear\_level} (REAL), \texttt{timestamp} (REAL).
+\end{itemize}
+
+\subsection{Thiết kế giao diện Dashboard giám sát tập trung}
+Dashboard được thiết kế theo giao diện Single-Page App (SPA) hiện đại, sử dụng thanh điều hướng bên trên để chuyển đổi nhanh giữa 3 thẻ tab chức năng chính:
+\begin{enumerate}
+    \item \textbf{Tab "Live Monitor" (Giám sát trực tuyến):} Hiển thị danh sách tất cả các xe kèm theo biểu tượng trạng thái trực tuyến (Online --- màu xanh lá) hoặc ngoại tuyến (Offline --- màu xám) ở Sidebar. Panel chính hiển thị thông tin xe đang chọn bao gồm biển số xe, tên tài xế, trạng thái hiện tại (màu sắc thay đổi theo mức độ cảnh báo) và các thanh tiến trình trực quan thể hiện giá trị $F_{\text{score}}$, $AngerLevel$, $FearLevel$. Một biểu đồ đường (Line Chart) được vẽ bởi Chart.js thể hiện diễn tiến của các chỉ số trong vòng 60 giây gần nhất.
+    \item \textbf{Tab "Lịch sử cảnh báo" (History Search):} Cung cấp biểu mẫu tìm kiếm cho phép người quản lý truy vấn nhật ký vi phạm trong cơ sở dữ liệu SQLite. Bộ lọc hỗ trợ tìm kiếm chính xác theo Biển số xe và lọc theo Loại trạng thái lỗi vi phạm. Kết quả được trả về dưới dạng bảng chi tiết có phân trang và hiển thị mốc thời gian rõ ràng.
+    \item \textbf{Tab "Hồ sơ tài xế" (Driver Profiles):} Hiển thị danh sách tổng hợp tất cả các lái xe đã đăng ký trên hệ thống. Đối với mỗi lái xe, hệ thống tự động thống kê tổng số lần vi phạm các lỗi tương ứng và hiển thị điểm số an toàn (Safety Score) kèm theo phân loại xếp hạng an toàn giao thông của tài xế đó.
+\end{enumerate}
+
+\end{document}

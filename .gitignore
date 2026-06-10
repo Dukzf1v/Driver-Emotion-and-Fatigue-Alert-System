@@ -1,0 +1,35 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Datasets & Videos (Rất nặng, không nên push lên Git)
+Emotion Dataset/
+Test_Data/
+video_test/
+
+# Database
+dms_database.db
+
+# Virtual Environment
+DATN/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# VS Code / IDE
+.vscode/
+.idea/

@@ -1,0 +1,102 @@
+\ttl@change@i {\@ne }{chapter}{0.0cm}{\bfseries \vspace {0.3cm}}{{\bfseries {\scshape } CHƯƠNG \thecontentslabel .\ }}{}{\titlerule *[0.3pc]{.}\contentspage }\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\ttl@change@i {\@ne }{section}{0.0cm}{\vspace {0.3cm}}{\thecontentslabel \ }{}{\titlerule *[0.3pc]{.}\contentspage }\relax 
+\ttl@change@v {section}{}{}{}\relax 
+\ttl@change@i {\@ne }{subsection}{1.0cm}{\vspace {0.3cm}}{\thecontentslabel \ }{}{\titlerule *[0.3pc]{.}\contentspage }\relax 
+\ttl@change@v {subsection}{}{}{}\relax 
+\thispagestyle {empty}
+\contentsline {chapter}{\numberline {1}GIỚI THIỆU ĐỀ TÀI}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Đặt vấn đề và tính cấp thiết của đề tài}{1}{section.1.1}%
+\contentsline {subsection}{\numberline {1.1.1}Rủi ro tai nạn do trạng thái tâm sinh lý của tài xế}{1}{subsection.1.1.1}%
+\contentsline {subsection}{\numberline {1.1.2}Tầm quan trọng của việc ứng dụng Trí tuệ nhân tạo (AI) trong giám sát lái xe}{3}{subsection.1.1.2}%
+\contentsline {section}{\numberline {1.2}Mục tiêu nghiên cứu và phạm vi nghiên cứu}{5}{section.1.2}%
+\contentsline {subsection}{\numberline {1.2.1}Mục tiêu}{6}{subsection.1.2.1}%
+\contentsline {subsection}{\numberline {1.2.2}Đối tượng nghiên cứu}{6}{subsection.1.2.2}%
+\contentsline {subsection}{\numberline {1.2.3}Phạm vi nghiên cứu: Luồng dữ liệu video trong cabin xe}{7}{subsection.1.2.3}%
+\contentsline {section}{\numberline {1.3}Nhiệm vụ đồ án}{8}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Định hướng giải pháp}{10}{section.1.4}%
+\contentsline {section}{\numberline {1.5}Bố cục đồ án}{12}{section.1.5}%
+\contentsline {chapter}{\numberline {2}KHẢO SÁT VÀ PHÂN TÍCH YÊU CẦU}{14}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Khảo sát hiện trạng và các nghiên cứu liên quan}{14}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Khảo sát các hệ thống hỗ trợ lái xe an toàn trên thị trường}{14}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}Các nghiên cứu nhận diện ngủ gật và trạng thái cảm xúc tài xế}{14}{subsection.2.1.2}%
+\contentsline {section}{\numberline {2.2}Khảo sát các bộ dữ liệu khuôn mặt phục vụ huấn luyện mô hình}{15}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Các bộ dữ liệu biểu cảm tổng quát}{15}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Các bộ dữ liệu chuyên biệt về lái xe}{16}{subsection.2.2.2}%
+\contentsline {section}{\numberline {2.3}Phân tích yêu cầu chức năng hệ thống}{16}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Yêu cầu của bộ phát hiện biểu cảm khuôn mặt và cảnh báo dùng AI}{16}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}Yêu cầu của Dashboard giám sát và lưu trữ}{16}{subsection.2.3.2}%
+\contentsline {section}{\numberline {2.4}Phân tích yêu cầu phi chức năng đối với mô hình AI}{17}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}Yêu cầu về độ chính xác phân loại của mô hình học sâu}{17}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}Yêu cầu về tốc độ xử lý và độ trễ suy luận}{17}{subsection.2.4.2}%
+\contentsline {chapter}{\numberline {3}NỀN TẢNG LÝ THUYẾT VÀ CÔNG NGHỆ SỬ DỤNG}{19}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Tổng quan về mô hình hình học khuôn mặt và các chỉ số sinh học tài xế}{19}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}Mô hình MediaPipe FaceMesh trích xuất 468 mốc khuôn mặt}{19}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}Công thức toán học tính tỷ lệ mở mắt EAR và tỷ lệ mở miệng MAR}{19}{subsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.1.3}Chỉ số PERCLOS trong đánh giá rủi ro mệt mỏi}{20}{subsection.3.1.3}%
+\contentsline {section}{\numberline {3.2}Tìm hiểu về mạng học sâu CNN MobileNetV3}{21}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Kiến trúc MobileNetV3 tối ưu hóa cho thiết bị di động}{21}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Khối Inverted Residuals và khối chú ý Squeeze-and-Excitation}{21}{subsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.2.3}Hàm kích hoạt Hard-swish và cơ chế học chuyển giao (Transfer Learning)}{22}{subsection.3.2.3}%
+\contentsline {section}{\numberline {3.3}Các công nghệ và thư viện phát triển phần mềm}{22}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Ngôn ngữ Python, framework PyTorch và thư viện OpenCV}{22}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}Thư viện phân tích dữ liệu: Pandas, NumPy, scikit-learn, matplotlib}{23}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.3.3}Flask Web Server, Server-Sent Events (SSE) và SQLite}{23}{subsection.3.3.3}%
+\contentsline {chapter}{\numberline {4}PHÂN TÍCH THIẾT KẾ, TRIỂN KHAI VÀ ĐÁNH GIÁ HỆ THỐNG}{24}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Sơ đồ tổng thể hệ thống nhận dạng biểu cảm khuôn mặt tài xế lái xe, phát hiện cảm xúc tiêu cực và cảnh báo}{24}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Thiết kế Pipeline xử lý tổng thể của hệ thống}{24}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}Sơ đồ luồng xử lý thời gian thực từ camera hành trình đến bộ cảnh báo tại thiết bị mobile trên xe}{24}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}Luồng xử lý offline các clip video từ camera tại trung tâm (server)}{25}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}Mô tả các giai đoạn luân chuyển và biến đổi dữ liệu}{25}{subsection.4.2.3}%
+\contentsline {section}{\numberline {4.3}Thiết kế chi tiết các khối xử lý và xây dựng bộ dữ liệu}{26}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}Phương pháp tái cấu trúc và gom nhóm dữ liệu để tối ưu hóa khả năng học của mạng}{26}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}Thiết kế giải pháp phát hiện và bám sát khuôn mặt}{26}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}Thiết kế quy trình tiền xử lý ảnh đầu vào}{27}{subsection.4.3.3}%
+\contentsline {subsection}{\numberline {4.3.4}Thiết kế các kỹ thuật tăng cường và cân bằng dữ liệu}{27}{subsection.4.3.4}%
+\contentsline {section}{\numberline {4.4}Thiết kế triển khai mô hình học sâu CNN MobileNetV3}{28}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Thiết kế sơ đồ kiến trúc mạng MobileNetV3 phân loại cảm xúc}{28}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}Thiết kế hàm mất mát và bộ tối ưu hóa}{29}{subsection.4.4.2}%
+\contentsline {section}{\numberline {4.5}Thiết kế chi tiết khối quyết định cảnh báo}{29}{section.4.5}%
+\contentsline {subsection}{\numberline {4.5.1}Thiết kế tập luật logic tích hợp chỉ số hình học và xác suất cảm xúc CNN}{29}{subsection.4.5.1}%
+\contentsline {subsection}{\numberline {4.5.2}Thiết kế cơ chế cửa sổ thời gian đảm bảo độ tin cậy cảnh báo}{30}{subsection.4.5.2}%
+\contentsline {section}{\numberline {4.6}Thiết kế kiến trúc phần mềm và cơ sở dữ liệu}{30}{section.4.6}%
+\contentsline {subsection}{\numberline {4.6.1}Thiết kế kiến trúc sơ đồ luồng dữ liệu}{30}{subsection.4.6.1}%
+\contentsline {subsection}{\numberline {4.6.2}Thiết kế mô hình dữ liệu quan hệ SQLite}{31}{subsection.4.6.2}%
+\contentsline {subsection}{\numberline {4.6.3}Thiết kế giao diện Dashboard giám sát tập trung}{31}{subsection.4.6.3}%
+\contentsline {chapter}{\numberline {5}CÁC GIẢI PHÁP VÀ ĐÓNG GÓP NỔI BẬT}{32}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Lập trình và cài đặt ứng dụng}{32}{section.5.1}%
+\contentsline {subsection}{\numberline {5.1.1}Xây dựng và cài đặt luồng thu nhận hình ảnh đa luồng và trích xuất đặc trưng}{32}{subsection.5.1.1}%
+\contentsline {subsection}{\numberline {5.1.2}Lập trình quá trình huấn luyện mô hình MobileNetV3 trên PyTorch}{32}{subsection.5.1.2}%
+\contentsline {subsection}{\numberline {5.1.3}Cài đặt module logic quyết định cảnh báo và âm thanh cục bộ}{33}{subsection.5.1.3}%
+\contentsline {subsection}{\numberline {5.1.4}Phát triển Flask Server APIs, database SQLite và giao diện Dashboard}{34}{subsection.5.1.4}%
+\contentsline {section}{\numberline {5.2}Các giải pháp tối ưu và đóng góp nổi bật về thuật toán (Tối ưu hệ thống)}{34}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Thuật toán kết hợp Hybrid (Hình học khuôn mặt \& Xác suất cảm xúc CNN)}{34}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}Bộ lọc làm mượt xác suất cảm xúc}{35}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}Cơ chế tự động điều chỉnh ngưỡng động theo đặc trưng sinh học khuôn mặt}{35}{subsection.5.2.3}%
+\contentsline {subsection}{\numberline {5.2.4}Thuật toán tự động chấm điểm an toàn}{36}{subsection.5.2.4}%
+\contentsline {section}{\numberline {5.3}Thử nghiệm và đánh giá chất lượng mô hình}{36}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Đánh giá độ chính xác trên các tập dữ liệu liên quan}{36}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}Biểu diễn kết quả huấn luyện}{37}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}Đánh giá độ chính xác qua các chỉ số}{37}{subsection.5.3.3}%
+\contentsline {section}{\numberline {5.4}Kịch bản thử nghiệm hệ thống và đánh giá hiệu năng}{38}{section.5.4}%
+\contentsline {chapter}{\numberline {6}KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}{39}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Kết luận}{39}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Hướng phát triển}{39}{section.6.2}%
+\contentsline {chapter}{TÀI LIỆU THAM KHẢO}{43}{section*.15}%
+\contentsline {chapter}{PHỤ LỤC}{45}{section*.16}%
+\ttl@change@i {\@ne }{chapter}{0.0cm}{\bfseries \vspace {0.3cm}}{{\bfseries {\scshape } \thecontentslabel .\ }}{}{\titlerule *[0.3pc]{.}\contentspage }\relax 
+\ttl@change@v {chapter}{}{}{}\relax 
+\contentsline {chapter}{\numberline {A}HƯỚNG DẪN VIẾT ĐỒ ÁN TỐT NGHIỆP}{45}{appendix.1.A}%
+\contentsline {section}{\numberline {A.1}Ngành học}{46}{section.1.A.1}%
+\contentsline {section}{\numberline {A.2}Đánh dấu (bullet) và đánh số (numering)}{46}{section.1.A.2}%
+\contentsline {section}{\numberline {A.3}Cách thêm bảng}{47}{section.1.A.3}%
+\contentsline {section}{\numberline {A.4}Chèn hình ảnh}{47}{section.1.A.4}%
+\contentsline {section}{\numberline {A.5}Tài liệu tham khảo}{48}{section.1.A.5}%
+\contentsline {paragraph}{Cách liệt kê}{48}{paragraph*.19}%
+\contentsline {paragraph}{Các loại tài liệu tham khảo}{48}{paragraph*.20}%
+\contentsline {section}{\numberline {A.6}Cách viết phương trình và công thức toán học}{48}{section.1.A.6}%
+\contentsline {section}{\numberline {A.7}Qui cách đóng quyển}{48}{section.1.A.7}%
+\contentsline {chapter}{\numberline {B}ĐẶC TẢ USE CASE}{50}{appendix.1.B}%
+\contentsline {section}{\numberline {B.1}Đặc tả use case ``Thống kê tình hình mượn sách''}{50}{section.1.B.1}%
+\contentsline {section}{\numberline {B.2}Đặc tả use case ``Đăng ký làm thẻ mượn''}{50}{section.1.B.2}%
+\contentsfinish 
