@@ -1,13 +1,10 @@
 import os
-# pyrefly: ignore [missing-import]
 import torch
-# pyrefly: ignore [missing-import]
 import torch.nn as nn
-# pyrefly: ignore [missing-import]
 from torchvision import models
 
 def build_model(num_classes: int = 2, dropout: float = 0.3) -> nn.Module:
-    model = models.mobilenet_v3_large(weights=None)
+    model = models.mobilenet_v3_small(weights=None)
     in_features = model.classifier[0].in_features
     model.classifier = nn.Sequential(
         nn.Linear(in_features, 256),
@@ -18,7 +15,7 @@ def build_model(num_classes: int = 2, dropout: float = 0.3) -> nn.Module:
     return model
 
 def main():
-    ckpt_path = "best_mobilenetv3_5class.pth"
+    ckpt_path = "models/best_mobilenetv3_5class.pth"
     output_dir = "static/models"
     os.makedirs(output_dir, exist_ok=True)
     output_ptl_path = os.path.join(output_dir, "emotion_model.ptl")

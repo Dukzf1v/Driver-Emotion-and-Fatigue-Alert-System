@@ -13,15 +13,12 @@ from pathlib import Path
 from typing import Optional, Tuple, List
 
 # CONFIGURATION
-BASE_DIR     = Path(r"D:\StudyPath\Practice\advertising-system")
+BASE_DIR     = Path(__file__).parent
 EMOTION_DIR  = BASE_DIR / "Emotion Dataset"
 
 RAF_DB_DIR   = EMOTION_DIR / "RAF-DB"
 MLIDER_DIR   = EMOTION_DIR / "MLI-DER"
 KMUFED_DIR   = EMOTION_DIR / "KMU-FED"
-NTHU_DIR     = BASE_DIR / "NTHU DDD"
-FEDRO_DIR    = EMOTION_DIR / "FED-RO"
-UTARLDD_DIR  = BASE_DIR / "UTA-RLDD"
 AFFECTNET_DIR= EMOTION_DIR / "AffectNet"
 FER2013_DIR  = EMOTION_DIR / "FER-2013"
 SFEW_DIR     = EMOTION_DIR / "SFEW"
@@ -178,9 +175,12 @@ class FaceDetector:
 
 def make_output_dirs(output_root: Path):
     """Create the full output folder tree."""
-    for split in ["train", "val", "test"]:
+    for split in ["train", "val"]:
         for cls_folder in CLASS_FOLDERS.values():
             (output_root / split / cls_folder).mkdir(parents=True, exist_ok=True)
+    for test_dataset in ["affectnet", "fer2013", "rafdb"]:
+        for cls_folder in CLASS_FOLDERS.values():
+            (output_root / "test" / test_dataset / cls_folder).mkdir(parents=True, exist_ok=True)
     logger.info(f"Output directory tree created at: {output_root}")
 
 
@@ -342,8 +342,8 @@ def process_affectnet(output_root: Path, detector: FaceDetector):
                                  if f.suffix.lower() in (".jpg", ".jpeg", ".png")])
             
             cls_folder = CLASS_FOLDERS[dms_cls]
-            logger.info(f"  [Test Split] Class {dms_cls} ({cls_folder}): {len(img_files)} images -> test/")
-            dst_dir = output_root / "test" / cls_folder
+            logger.info(f"  [Test Split] Class {dms_cls} ({cls_folder}): {len(img_files)} images -> test/affectnet/")
+            dst_dir = output_root / "test" / "affectnet" / cls_folder
 
             for src in img_files:
                 process_and_save(src, dst_dir, detector, stats,
@@ -386,8 +386,8 @@ RAFDB_CLASS_MAP = {
 def process_rafdb(output_root: Path, detector: FaceDetector):
     """
     Process RAF-DB dataset.
-    Uses both 'train' and 'test' subsets from RAF-DB, then re-splits
-    the combined pool 80/20 into our train/val.
+    - 'train' folder is split 80/20 into train/val splits.
+    - 'test' folder is sent 100% to 'test/rafdb'.
     """
     logger.info("=" * 60)
     logger.info("Processing: RAF-DB")
@@ -395,42 +395,57 @@ def process_rafdb(output_root: Path, detector: FaceDetector):
 
     stats = Stats()
 
-    # Collect all images grouped by DMS class
-    class_files: dict = {i: [] for i in range(5)}
-
-    for subset in ["train", "test"]:
-        subset_dir = RAF_DB_DIR / subset
-        if not subset_dir.exists():
-            logger.warning(f"RAF-DB subset not found: {subset_dir}")
-            continue
-
+    # ── 1. Process Train folder (split into train/val) ──
+    train_src = RAF_DB_DIR / "train"
+    if train_src.exists():
+        class_files: dict = {i: [] for i in range(5)}
         for folder_name, dms_cls in RAFDB_CLASS_MAP.items():
-            cls_dir = subset_dir / folder_name
+            cls_dir = train_src / folder_name
             if not cls_dir.exists():
                 continue
             img_files = sorted([f for f in cls_dir.iterdir()
                                  if f.suffix.lower() in (".jpg", ".jpeg", ".png")])
             class_files[dms_cls].extend(img_files)
 
-    # Split each class independently (preserves class balance across splits)
-    for dms_cls, files in class_files.items():
-        if not files:
-            logger.warning(f"RAF-DB: No files found for class {dms_cls}")
-            continue
+        for dms_cls, files in class_files.items():
+            if not files:
+                continue
 
-        train_files, val_files = train_val_split(files, TRAIN_RATIO, seed=RANDOM_SEED + dms_cls)
+            train_files, val_files = train_val_split(files, TRAIN_RATIO, seed=RANDOM_SEED + dms_cls)
+            cls_folder = CLASS_FOLDERS[dms_cls]
 
-        cls_folder = CLASS_FOLDERS[dms_cls]
-        logger.info(f"  Class {dms_cls} ({cls_folder}): "
-                    f"{len(train_files)} train + {len(val_files)} val "
-                    f"= {len(files)} total source images")
+            logger.info(f"  [Train Split] Class {dms_cls} ({cls_folder}): "
+                        f"{len(train_files)} train + {len(val_files)} val")
 
-        for split, file_list in [("train", train_files), ("val", val_files)]:
-            dst_dir = output_root / split / cls_folder
-            for src in file_list:
+            for split, file_list in [("train", train_files), ("val", val_files)]:
+                dst_dir = output_root / split / cls_folder
+                for src in file_list:
+                    process_and_save(src, dst_dir, detector, stats,
+                                     dataset_prefix="rafdb_train",
+                                     dms_cls=dms_cls)
+    else:
+        logger.warning(f"RAF-DB train folder not found at {train_src}")
+
+    # ── 2. Process Test folder (100% to test/rafdb split) ──
+    test_src = RAF_DB_DIR / "test"
+    if test_src.exists():
+        for folder_name, dms_cls in RAFDB_CLASS_MAP.items():
+            cls_dir = test_src / folder_name
+            if not cls_dir.exists():
+                continue
+            img_files = sorted([f for f in cls_dir.iterdir()
+                                 if f.suffix.lower() in (".jpg", ".jpeg", ".png")])
+            
+            cls_folder = CLASS_FOLDERS[dms_cls]
+            logger.info(f"  [Test Split] Class {dms_cls} ({cls_folder}): {len(img_files)} images -> test/rafdb/")
+            dst_dir = output_root / "test" / "rafdb" / cls_folder
+
+            for src in img_files:
                 process_and_save(src, dst_dir, detector, stats,
-                                 dataset_prefix="rafdb",
+                                 dataset_prefix="rafdb_test",
                                  dms_cls=dms_cls)
+    else:
+        logger.warning(f"RAF-DB test folder not found at {test_src}")
 
     stats.report("RAF-DB")
 
@@ -624,63 +639,7 @@ def process_kmufed(output_root: Path, detector: FaceDetector):
 
     stats.report("KMU-FED")
 
-# ---------------------------------------------------------------------------
-# DATASET PROCESSOR: FED-RO (Facial Expression Dataset with occlusions)
-# ---------------------------------------------------------------------------
-FEDRO_CLASS_MAP = {
-    "neural":   0,  # Typo in original dataset
-    "neutral":  0,
-    "anger":    1,
-    "disgust":  1,  # Merged
-    "fear":     2,
-    "happy":    3,
-    "sad":      4,
-}
 
-def process_fedro(output_root: Path, detector: FaceDetector):
-    """
-    Process FED-RO dataset.
-    Split 80/20 into train/val.
-    """
-    logger.info("=" * 60)
-    logger.info("Processing: FED-RO")
-    logger.info("=" * 60)
-
-    stats = Stats()
-
-    src_dir = FEDRO_DIR
-    if not src_dir.exists():
-        logger.warning(f"FED-RO folder not found at {src_dir}")
-        return
-
-    class_files: dict = {i: [] for i in range(5)}
-    for folder_name, dms_cls in FEDRO_CLASS_MAP.items():
-        cls_dir = src_dir / folder_name
-        if not cls_dir.exists():
-            continue
-        img_files = sorted([f for f in cls_dir.iterdir()
-                             if f.suffix.lower() in (".jpg", ".jpeg", ".png")])
-        class_files[dms_cls].extend(img_files)
-
-    for dms_cls, files in class_files.items():
-        if not files:
-            continue
-
-        train_files, val_files = train_val_split(files, TRAIN_RATIO, seed=RANDOM_SEED + dms_cls)
-        cls_folder = CLASS_FOLDERS[dms_cls]
-
-        logger.info(f"  Class {dms_cls} ({cls_folder}): "
-                    f"{len(train_files)} train + {len(val_files)} val "
-                    f"= {len(files)} total source images")
-
-        for split, file_list in [("train", train_files), ("val", val_files)]:
-            dst_dir = output_root / split / cls_folder
-            for src in file_list:
-                process_and_save(src, dst_dir, detector, stats,
-                                 dataset_prefix="fedro",
-                                 dms_cls=dms_cls)
-
-    stats.report("FED-RO")
 
 
 # ---------------------------------------------------------------------------
@@ -749,8 +708,8 @@ def process_fer2013(output_root: Path, detector: FaceDetector):
                                  if f.suffix.lower() in (".jpg", ".jpeg", ".png")])
             
             cls_folder = CLASS_FOLDERS[dms_cls]
-            logger.info(f"  [Test Split] Class {dms_cls} ({cls_folder}): {len(img_files)} images -> test/")
-            dst_dir = output_root / "test" / cls_folder
+            logger.info(f"  [Test Split] Class {dms_cls} ({cls_folder}): {len(img_files)} images -> test/fer2013/")
+            dst_dir = output_root / "test" / "fer2013" / cls_folder
 
             for src in img_files:
                 process_and_save(src, dst_dir, detector, stats,
@@ -874,10 +833,31 @@ def report_final_stats(output_root: Path):
     logger.info("=" * 60)
 
     total_all = 0
-    for split in ["train", "val", "test"]:
+    
+    # Train and Val splits
+    for split in ["train", "val"]:
         split_dir = output_root / split
         split_total = 0
         logger.info(f"\n  Split: {split.upper()}")
+        for dms_cls, cls_folder in CLASS_FOLDERS.items():
+            cls_dir = split_dir / cls_folder
+            if cls_dir.exists():
+                count = len(list(cls_dir.glob("*.jpg"))) + \
+                        len(list(cls_dir.glob("*.jpeg"))) + \
+                        len(list(cls_dir.glob("*.png")))
+                logger.info(f"    Class {dms_cls} ({cls_folder:12s}): {count:6,} images")
+                split_total += count
+            else:
+                logger.info(f"    Class {dms_cls} ({cls_folder:12s}):       0 images")
+
+        logger.info(f"    {'SPLIT TOTAL':16s}: {split_total:6,} images")
+        total_all += split_total
+
+    # Separate Test datasets
+    for test_dataset in ["affectnet", "fer2013", "rafdb"]:
+        split_dir = output_root / "test" / test_dataset
+        split_total = 0
+        logger.info(f"\n  Split: TEST ({test_dataset.upper()})")
         for dms_cls, cls_folder in CLASS_FOLDERS.items():
             cls_dir = split_dir / cls_folder
             if cls_dir.exists():
@@ -922,7 +902,6 @@ def main():
         process_rafdb(OUTPUT_DIR,    detector)
         process_mlider(OUTPUT_DIR,   detector)
         process_kmufed(OUTPUT_DIR,   detector)
-        process_fedro(OUTPUT_DIR,    detector)
         process_fer2013(OUTPUT_DIR,  detector)
         process_kdef(OUTPUT_DIR,     detector)
         process_sfew(OUTPUT_DIR,     detector)
@@ -935,9 +914,11 @@ def main():
     logger.info(f"Dataset ready for PyTorch ImageFolder at: {OUTPUT_DIR}")
     logger.info("")
     logger.info("  Example PyTorch usage:")
-    logger.info("  train_ds = datasets.ImageFolder('Unified_DMS_Dataset_v4/train', transform)")
-    logger.info("  val_ds   = datasets.ImageFolder('Unified_DMS_Dataset_v4/val',   transform)")
-    logger.info("  test_ds  = datasets.ImageFolder('Unified_DMS_Dataset_v4/test',  transform)")
+    logger.info("  train_ds      = datasets.ImageFolder('Unified_DMS_Dataset_v4/train', transform)")
+    logger.info("  val_ds        = datasets.ImageFolder('Unified_DMS_Dataset_v4/val',   transform)")
+    logger.info("  test_ds_aff   = datasets.ImageFolder('Unified_DMS_Dataset_v4/test/affectnet', transform)")
+    logger.info("  test_ds_fer   = datasets.ImageFolder('Unified_DMS_Dataset_v4/test/fer2013',   transform)")
+    logger.info("  test_ds_raf   = datasets.ImageFolder('Unified_DMS_Dataset_v4/test/rafdb',     transform)")
 
 
 if __name__ == "__main__":

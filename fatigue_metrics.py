@@ -11,7 +11,8 @@ class FatigueMetrics:
 
         self.T_EAR = config.T_EAR
         self.T_MAR = config.T_MAR
-        self.T_PITCH = config.T_PITCH
+        self.T_PITCH_UP = config.T_PITCH_UP
+        self.T_PITCH_DOWN = config.T_PITCH_DOWN
         
         self.is_blinking = False
         self.is_yawning = False
@@ -48,9 +49,9 @@ class FatigueMetrics:
             self.yawn_count += 1
 
         # Nod
-        if pitch < self.T_PITCH:
+        if pitch < self.T_PITCH_UP or pitch > self.T_PITCH_DOWN:
             self.is_nodding = True
-        elif pitch >= self.T_PITCH and self.is_nodding:
+        elif (self.T_PITCH_UP <= pitch <= self.T_PITCH_DOWN) and self.is_nodding:
             self.is_nodding = False
             state["nod_event"] = 1
             self.nod_count += 1

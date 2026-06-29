@@ -17,6 +17,8 @@ __pycache__/
 
 # Datasets & Videos (Rất nặng, không nên push lên Git)
 Emotion Dataset/
+Fatigue Dataset/
+Unified_DMS_Dataset_v4/
 Test_Data/
 video_test/
 

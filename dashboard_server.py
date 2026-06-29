@@ -1,4 +1,3 @@
-# pyrefly: ignore [missing-import]
 from flask import Flask, request, jsonify, render_template, Response
 from flask_cors import CORS
 import time
@@ -316,15 +315,23 @@ def stream():
             yield f"data: {json.dumps(initial_msg)}\n\n"
             
             while True:
-                msg = q.get()
-                yield msg
+                try:
+                    msg = q.get(timeout=20)
+                    yield msg
+                except queue.Empty:
+                    # Send keep-alive comment to prevent proxy connection timeout
+                    yield ": ping\n\n"
         except GeneratorExit:
             pass
         finally:
             if q in listeners:
                 listeners.remove(q)
                 
-    return Response(event_stream(), mimetype="text/event-stream")
+    response = Response(event_stream(), mimetype="text/event-stream")
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'
+    response.headers['Connection'] = 'keep-alive'
+    return response
 
 # Initialize SQLite DB and load historical data
 init_db()

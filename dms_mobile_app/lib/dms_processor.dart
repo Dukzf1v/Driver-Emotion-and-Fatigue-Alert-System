@@ -18,8 +18,8 @@ class DmsProcessor {
   static const double tPitch = -18.0;
 
   static const double fatigueThresh = 0.25;
-  static const double angryThresh = 0.25;
-  static const double fearThresh = 0.25;
+  static const double angryThresh = 0.40;
+  static const double fearThresh = 0.35;
 
   static const int fatigueWindowSize = 90;
   static const int emotionWindowSize = 90;
@@ -83,10 +83,8 @@ class DmsProcessor {
         5, // numClasses: normal, anger, fear, happiness, sadness
         labelPath: "assets/labels.txt", // explicit label path to prevent asset lookup error
       );
-      // ignore: avoid_print
       print("PyTorch Mobile PTL model loaded successfully.");
     } catch (e) {
-      // ignore: avoid_print
       print("Error loading PyTorch PTL model: $e");
     }
   }
@@ -231,8 +229,8 @@ class DmsProcessor {
 
         // Dynamic thresholds based on Happiness/Sadness
         final pHappy = _currentProbs[happinessClassIdx];
-        final pSad = _currentProbs[sadnessClassIdx];
-        final dynamicTEar = tEar * max(0.6, 1.0 - (0.20 * pHappy) - (0.15 * pSad));
+        final pAngry = _currentProbs[angerClassIdx];
+        final dynamicTEar = tEar * max(0.6, 1.0 - (0.25 * pHappy) - (0.20 * pAngry));
         final dynamicTMar = tMar * min(1.5, 1.0 + (0.30 * pHappy));
 
         // Update fatigue state machine
@@ -347,7 +345,6 @@ class DmsProcessor {
       }
 
     } catch (e) {
-      // ignore: avoid_print
       print("DMS processing frame error: $e");
     } finally {
       _isProcessing = false;
@@ -371,7 +368,6 @@ class DmsProcessor {
     ).then((res) {
       // success
     }).catchError((err) {
-      // ignore: avoid_print
       print("Failed to sync status with server: $err");
     });
   }
@@ -501,7 +497,6 @@ class DmsProcessor {
       // Encode image to JPEG
       return Uint8List.fromList(img.encodeJpg(croppedImg));
     } catch (e) {
-      // ignore: avoid_print
       print("Error in _cropFaceYuv: $e");
       return null;
     }

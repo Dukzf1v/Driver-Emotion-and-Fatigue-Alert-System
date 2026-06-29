@@ -17,6 +17,7 @@ class DmsApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'DMS Mobile Client',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         primaryColor: const Color(0xFF4A9EE8),
         scaffoldBackgroundColor: const Color(0xFF0F1319),
@@ -40,8 +41,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Form controllers
-  final TextEditingController _serverIpController = TextEditingController(text: "http://192.168.1.15:5000");
+  // deployed server URL
+  static const String _serverUrl = "https://dms-dashboard-udqh.onrender.com";
+
+  // Form controllers (vehicle info only)
   final TextEditingController _vehicleIdController = TextEditingController(text: "36A-120.36");
   final TextEditingController _driverNameController = TextEditingController(text: "Phùng Thanh Độ");
 
@@ -119,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _dmsProcessor?.processImage(
           image,
           sensorOrientation,
-          _serverIpController.text.trim(),
+          _serverUrl,
           _vehicleIdController.text.trim(),
           _driverNameController.text.trim(),
         );
@@ -132,7 +135,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      // ignore: avoid_print
       print("Camera init error: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -164,7 +166,6 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await _audioPlayer.play(AssetSource('warning.wav'));
     } catch (e) {
-      // ignore: avoid_print
       print("Error playing warning sound: $e");
     }
   }
@@ -199,7 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DMS Native Client', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+        title: const Text('Driver Monitor', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF141920),
         elevation: 0,
         actions: [
@@ -253,7 +254,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        CameraPreview(_cameraController!),
+                        FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width: 100,
+                            height: 100 * _cameraController!.value.aspectRatio,
+                            child: CameraPreview(_cameraController!),
+                          ),
+                        ),
                         // Mirrored effect for driver camera
                         Positioned.fill(
                           child: Align(
@@ -351,15 +359,27 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text("Configurations", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _serverIpController,
-                        decoration: const InputDecoration(
-                          labelText: "Flask Server URL",
-                          border: OutlineInputBorder(),
+                      const Text("Driver Info", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 4),
+                      // Show server URL as read-only info
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E2838),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        enabled: !_isMonitoring,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.cloud_done, size: 14, color: Color(0xFF3DCC8E)),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                "Connected to deployed server",
+                                style: TextStyle(fontSize: 12, color: Color(0xFF3DCC8E)),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
