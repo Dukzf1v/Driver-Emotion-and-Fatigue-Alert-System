@@ -2,8 +2,6 @@
 
 The Driver Emotion and Fatigue Alert System (**DEFAS**) is a comprehensive real-time driver monitoring solution optimized for hardware-constrained vehicle cabin environments. The system implements a **hybrid approach** combining **3D geometric facial landmark analysis** for biological states (blinking, yawning, head nodding) with a **fine-tuned deep convolutional neural network (MobileNetV3)** to classify negative driver emotional states (anger, panic).
 
-Developed as a Graduation Thesis for the **School of Information and Communication Technology (SOICT), Hanoi University of Science and Technology (HUST)**.
-
 ---
 
 ## Simulation Architecture
