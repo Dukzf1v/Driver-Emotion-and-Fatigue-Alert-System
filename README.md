@@ -81,9 +81,14 @@ The project operates under a simulated client-central architecture, enabling loc
 
 ---
 
-## Dataset Directory Structure
+## Dataset Download & Directory Structure
 
-To run the data preprocessing (`data_preprocessing.py`) or fatigue evaluation (`evaluate_fatigue_detection.py`) scripts, you must organize the raw datasets in the root directory as follows:
+Since the datasets are extremely large, they are not stored in this Git repository. You can download the pre-packaged datasets from Google Drive:
+
+* **Fatigue Dataset:** [Google Drive Link](https://drive.google.com/file/d/1dxvNPF7RBDpI1MblxNtbSge-sOl-wy2_/view?usp=sharing)
+* **Emotion Dataset:** [Google Drive Link](https://drive.google.com/file/d/1oarn9ye_6l4jEuAHNChA2E6iEwizqrX4/view?usp=sharing)
+
+To run the data preprocessing (`data_preprocessing.py`) or fatigue evaluation (`evaluate_fatigue_detection.py`) scripts, download and extract the files, then organize them in the root directory as follows:
 
 ```text
 ├── Fatigue Dataset/
