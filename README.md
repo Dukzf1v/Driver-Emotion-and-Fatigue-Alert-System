@@ -45,14 +45,9 @@ The project operates under a simulated client-central architecture, enabling loc
 
 ## System Preview
 
-### PC Monitoring Application HUD
-![PC App HUD](docs/images/pc_client_hud.png)
-
-### Web Monitoring Dashboard
-![Web Dashboard](docs/images/web_dashboard.png)
-
-### Mobile App (Flutter)
-![Mobile App](docs/images/mobile_client_app.jpg)
+| **PC App HUD** | **Web Dashboard** | **Mobile App (Flutter)** |
+| :---: | :---: | :---: |
+| ![PC App HUD](docs/images/pc_client_hud.png) | ![Web Dashboard](docs/images/web_dashboard.png) | ![Mobile App](docs/images/mobile_client_app.jpg) |
 
 ### Real-Time Detection Scenarios
 
