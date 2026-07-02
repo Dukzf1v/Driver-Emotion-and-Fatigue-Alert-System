@@ -218,9 +218,3 @@ The MobileNetV3 5-class model was trained on facial expression datasets. The tra
 | **Training Curves** | **Emotion Confusion Matrices** |
 | :---: | :---: |
 | ![Training Curves](docs/images/training_curves.png) | ![Emotion Confusion Matrices](docs/images/confusion_matrices.png) |
-
----
-
-## License
-
-Distributed under the MIT License. See `LICENSE` for more information.
