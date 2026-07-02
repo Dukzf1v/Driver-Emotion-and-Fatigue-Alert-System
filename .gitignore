@@ -15,7 +15,7 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Datasets & Videos (Rất nặng, không nên push lên Git)
+# Datasets & Videos
 Emotion Dataset/
 Fatigue Dataset/
 Unified_DMS_Dataset_v4/
