@@ -36,14 +36,14 @@ The project operates under a simulated client-central architecture, enabling loc
 ```
 
 1. **Local Monitoring (PC/Mobile Apps):** Performs real-time geometric landmark extraction, calculates Eye Aspect Ratio (EAR), Mouth Aspect Ratio (MAR), and head rotation angles (Pitch, Roll, Yaw) using PnP. It runs priority decision logic and triggers audio warnings locally.
-2. **Centralized Simulation Management Program (Flask):** Receives telemetry data from local apps, updates the database, applies a debounce filter (10-second cooldown), and logs warning histories.
-3. **Monitoring Simulation UI (Dashboard):** Displays real-time charts showing driver fatigue metrics, emotional probabilities, and safety scores, while allowing users to query warning history and manage registered vehicles.
+2. **Simulation Logger (Flask):** Receives telemetry data from local apps and logs warning histories to a local SQLite database.
+3. **Simulation UI:** A simple web interface that visualizes real-time driver metrics and allows querying warning logs.
 
 ---
 
 ## System Preview
 
-| **PC App HUD** | **Web Dashboard** | **Mobile App (Flutter)** |
+| **PC App HUD** | **Simulation UI** | **Mobile App (Flutter)** |
 | :---: | :---: | :---: |
 | ![PC App HUD](docs/images/pc_client_hud.png) | ![Web Dashboard](docs/images/web_dashboard.png) | ![Mobile App](docs/images/mobile_client_app.jpg) |
 
@@ -86,19 +86,19 @@ The system runs real-time hybrid decision logic to classify the driver's state i
 │   │   └── dms_processor.dart   # ML Kit & PyTorch Lite inference logic
 │   └── assets/                  # PyTorch Mobile Lite model & labels
 ├── models/                      # Model binaries (face landmarker, task files)
-├── templates/                   # HTML templates for the simulation dashboard
-├── static/                      # Static assets for the simulation dashboard (CSS, JS, icons)
+├── templates/                   # HTML templates for the simulation UI
+├── static/                      # Static assets for the simulation UI (CSS, JS, icons)
 ├── config.py                    # Global system thresholds and settings
 ├── landmark_engine.py           # MediaPipe facial landmark extractor (PC)
 ├── fatigue_metrics.py           # Sliding window PERCLOS & geometric calculations
 ├── emotion_scorer.py            # Average emotion accumulator
 ├── inference.py                 # PC monitoring execution script (Visual display interface)
-├── dashboard_server.py          # Centralized simulation program
+├── dashboard_server.py          # Script to run the simulation UI & database logger
 ├── data_preprocessing.py        # Dataset preprocessing and augmentation
 ├── evaluate_fatigue_detection.py# Dataset evaluation and metrics plotting
 ├── train.ipynb                  # MobileNetV3 emotion model training notebook
 ├── requirements.txt             # Dependencies for local monitoring & evaluation
-└── requirements_server.txt      # Dependencies for the simulation dashboard
+└── requirements_server.txt      # Dependencies for the simulation UI
 ```
 
 
@@ -168,12 +168,12 @@ pip install -r requirements.txt
 
 ### 3. Running the System
 
-#### Step A: Start the Centralized Simulation Program
-Run the simulation dashboard program first. It initializes the local SQLite database (`dms_database.db`) and opens a web interface at port `5000`:
+#### Step A: Start the Simulation Logger & UI
+Run the simulation program first. It initializes the local SQLite database (`dms_database.db`) and opens a web interface at port `5000`:
 ```bash
 python dashboard_server.py
 ```
-Open `http://localhost:5000` in your web browser to view the **Monitoring Simulation UI**.
+Open `http://localhost:5000` in your web browser to view the **Simulation UI**.
 
 #### Step B: Start the PC App
 Open a new terminal window (activate the virtual environment first) and run the local monitoring program:
@@ -184,7 +184,7 @@ python inference.py --source 0
 # Run using a test video file
 python inference.py --source video_test/test_driver.mp4
 ```
-The program will stream telemetry to the simulation dashboard automatically. Press `Q` or `ESC` on the camera window to close the visual display interface. Upon closing, the terminal will output execution metrics including FPS and CPU/RAM resources.
+The program will stream telemetry to the simulation database logger automatically. Press `Q` or `ESC` on the camera window to close the visual display interface. Upon closing, the terminal will output execution metrics including FPS and CPU/RAM resources.
 
 #### Step C: Run the Mobile App (Flutter)
 Ensure you have a mobile device (with USB debugging enabled) connected or an emulator open:
