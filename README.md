@@ -198,20 +198,26 @@ flutter run
 
 ## Performance Evaluation
 
+The evaluation of the system is split into two parts: geometric fatigue detection and deep-learning-based emotion classification.
+
+### 1. Fatigue Detection (EAR/MAR)
+
 To evaluate the fatigue detection algorithm on the static `Fatigue Dataset` and generate performance plots:
 ```bash
 python evaluate_fatigue_detection.py
 ```
-The evaluation report and plots (Confusion Matrix, ROC Curve) will be saved under the [SOICT_DATN/Hinhve/](file:///d:/StudyPath/Practice/advertising-system/SOICT_DATN/Hinhve) directory.
 
-### Evaluation Metrics & Distributions
-
-| Confusion Matrix | EAR & MAR Distribution |
+| **Confusion Matrix** | **EAR & MAR Distribution** |
 | :---: | :---: |
-| ![Confusion Matrix](docs/images/fatigue_detection_confusion_matrix.png) | ![Distribution](docs/images/fatigue_ear_mar_distribution.png) |
+| ![Fatigue Confusion Matrix](docs/images/fatigue_detection_confusion_matrix.png) | ![EAR MAR Distribution](docs/images/fatigue_ear_mar_distribution.png) |
 
-### Model Training Curves
-![MobileNetV3 Training Curves](docs/images/training_curves.png)
+### 2. Emotion Classification (MobileNetV3)
+
+The MobileNetV3 5-class model was trained on facial expression datasets. The training history curves and validation confusion matrices are shown below:
+
+| **Training Curves** | **Emotion Confusion Matrices** |
+| :---: | :---: |
+| ![Training Curves](docs/images/training_curves.png) | ![Emotion Confusion Matrices](docs/images/confusion_matrices.png) |
 
 ---
 
