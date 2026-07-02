@@ -17,9 +17,9 @@ The project operates under a simulated client-central architecture, enabling loc
                                  │ RGB Frames
                                  ▼
           ┌──────────────────────────────────────────────┐
-          │          Local Monitoring Clients            │
-          │  - PC Client (Python, MediaPipe, PyTorch)    │
-          │  - Mobile Client (Flutter, ML Kit, PyTorch)  │
+          │           Local Monitoring Apps              │
+          │  - PC App (Python, MediaPipe, PyTorch)       │
+          │  - Mobile App (Flutter, ML Kit, PyTorch)     │
           └───────────────┬──────────────────────┬───────┘
                           │                      │
                           │ HTTP POST            │ Audio Alarms
@@ -37,8 +37,8 @@ The project operates under a simulated client-central architecture, enabling loc
                └─────────────────┘      └─────────────────┘
 ```
 
-1. **Local Monitoring (Edge Clients):** Performs real-time geometric landmark extraction, calculates Eye Aspect Ratio (EAR), Mouth Aspect Ratio (MAR), and head rotation angles (Pitch, Roll, Yaw) using PnP. It runs priority decision logic and triggers audio warnings locally.
-2. **Centralized Simulation Management Program (Flask):** Receives telemetry data from local clients, updates the database, applies a debounce filter (10-second cooldown), and logs warning histories.
+1. **Local Monitoring (PC/Mobile Apps):** Performs real-time geometric landmark extraction, calculates Eye Aspect Ratio (EAR), Mouth Aspect Ratio (MAR), and head rotation angles (Pitch, Roll, Yaw) using PnP. It runs priority decision logic and triggers audio warnings locally.
+2. **Centralized Simulation Management Program (Flask):** Receives telemetry data from local apps, updates the database, applies a debounce filter (10-second cooldown), and logs warning histories.
 3. **Monitoring Simulation UI (Dashboard):** Displays real-time charts showing driver fatigue metrics, emotional probabilities, and safety scores, while allowing users to query warning history and manage registered vehicles.
 
 ---
@@ -47,7 +47,7 @@ The project operates under a simulated client-central architecture, enabling loc
 
 - **Hybrid Decision Logic:** Integrates fast geometric calculations (EAR for eye closure, MAR for yawning, Pitch for head nodding) with MobileNetV3 deep learning emotion scores.
 - **Dynamic Threshold Adjustments:** EAR and MAR alarm thresholds are dynamically adjusted in real-time based on the driver's current happiness/anger probabilities to reduce false alerts due to speaking or smiling.
-- **Optimized Data Syncing:** Local monitoring clients execute data transmission asynchronously on background threads. Telemetry is sent every 15 frames or immediately upon a state change to optimize device CPU performance.
+- **Optimized Data Syncing:** Local monitoring apps execute data transmission asynchronously on background threads. Telemetry is sent every 15 frames or immediately upon a state change to optimize device CPU performance.
 - **Cross-Platform Support:** Fully functional implementations on PC (Python, OpenCV, MediaPipe) and Mobile (Flutter/Dart, Google ML Kit Face Mesh, PyTorch Mobile Lite `.ptl` format).
 - **Offline Evaluation Pipeline:** Integrated classifier evaluation script generating accuracy reports, confusion matrices, and ROC curves on public datasets.
 
@@ -56,7 +56,9 @@ The project operates under a simulated client-central architecture, enabling loc
 ## Directory Structure
 
 ```
-├── dms_mobile_app/              # Flutter Mobile Client Source
+├── Fatigue Dataset/             # Fatigue evaluation dataset (Active/Fatigue subjects)
+├── Emotion Dataset/             # Emotion classification datasets (RAF-DB, FER-2013, etc.)
+├── dms_mobile_app/              # Flutter Mobile App Source
 │   ├── lib/
 │   │   ├── main.dart            # Visual display interface & Camera capture
 │   │   └── dms_processor.dart   # ML Kit & PyTorch Lite inference logic
@@ -64,18 +66,17 @@ The project operates under a simulated client-central architecture, enabling loc
 ├── models/                      # Model binaries (face landmarker, task files)
 ├── templates/                   # HTML templates for the simulation dashboard
 ├── static/                      # Static assets for the simulation dashboard (CSS, JS, icons)
-├── SOICT_DATN/                  # LaTeX Graduation Thesis documents
 ├── config.py                    # Global system thresholds and settings
 ├── landmark_engine.py           # MediaPipe facial landmark extractor (PC)
 ├── fatigue_metrics.py           # Sliding window PERCLOS & geometric calculations
 ├── emotion_scorer.py            # Average emotion accumulator
-├── inference.py                 # PC Client execution script (Visual display interface)
-├── dashboard_server.py          # Centralized simulation management program
+├── inference.py                 # PC monitoring execution script (Visual display interface)
+├── dashboard_server.py          # Centralized simulation program
 ├── data_preprocessing.py        # Dataset preprocessing and augmentation
 ├── evaluate_fatigue_detection.py# Dataset evaluation and metrics plotting
 ├── train.ipynb                  # MobileNetV3 emotion model training notebook
 ├── requirements.txt             # Dependencies for local monitoring & evaluation
-└── requirements_server.txt      # Minimal dependencies for the simulation dashboard
+└── requirements_server.txt      # Dependencies for the simulation dashboard
 ```
 
 
@@ -121,7 +122,7 @@ To run the data preprocessing (`data_preprocessing.py`) or fatigue evaluation (`
 
 ### 1. Prerequisites
 - Python 3.8+
-- Flutter SDK & Dart (for the mobile client)
+- Flutter SDK & Dart (for the mobile app)
 - Web camera or video files for testing
 
 ### 2. Setting Up Python Virtual Environment
@@ -152,7 +153,7 @@ python dashboard_server.py
 ```
 Open `http://localhost:5000` in your web browser to view the **Monitoring Simulation UI**.
 
-#### Step B: Start the PC Client
+#### Step B: Start the PC App
 Open a new terminal window (activate the virtual environment first) and run the local monitoring program:
 ```bash
 # Run using default webcam (source 0)
@@ -163,7 +164,7 @@ python inference.py --source video_test/test_driver.mp4
 ```
 The program will stream telemetry to the simulation dashboard automatically. Press `Q` or `ESC` on the camera window to close the visual display interface. Upon closing, the terminal will output execution metrics including FPS and CPU/RAM resources.
 
-#### Step C: Run the Mobile Client (Flutter)
+#### Step C: Run the Mobile App (Flutter)
 Ensure you have a mobile device (with USB debugging enabled) connected or an emulator open:
 ```bash
 cd dms_mobile_app
