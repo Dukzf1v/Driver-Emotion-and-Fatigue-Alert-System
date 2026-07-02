@@ -43,6 +43,35 @@ The project operates under a simulated client-central architecture, enabling loc
 
 ---
 
+## System Preview
+
+### PC Monitoring Application HUD
+![PC App HUD](docs/images/pc_client_hud.png)
+
+### Web Monitoring Dashboard
+![Web Dashboard](docs/images/web_dashboard.png)
+
+### Mobile App (Flutter)
+![Mobile App](docs/images/mobile_client_app.jpg)
+
+### Real-Time Detection Scenarios
+
+The system runs real-time hybrid decision logic to classify the driver's state into five distinct categories:
+
+| **Normal State** | **Fatigue State** |
+| :---: | :---: |
+| ![Normal](docs/images/detect_normal.png) | ![Fatigue](docs/images/detect_fatigue.png) |
+
+| **Distracted State** | **Angry State** |
+| :---: | :---: |
+| ![Distracted](docs/images/detect_distracted.png) | ![Angry](docs/images/detect_angry.png) |
+
+| **Fear State** |
+| :---: |
+| ![Fear](docs/images/detect_fear.png) |
+
+---
+
 ## Key Features
 
 - **Hybrid Decision Logic:** Integrates fast geometric calculations (EAR for eye closure, MAR for yawning, Pitch for head nodding) with MobileNetV3 deep learning emotion scores.
@@ -181,6 +210,15 @@ To evaluate the fatigue detection algorithm on the static `Fatigue Dataset` and 
 python evaluate_fatigue_detection.py
 ```
 The evaluation report and plots (Confusion Matrix, ROC Curve) will be saved under the [SOICT_DATN/Hinhve/](file:///d:/StudyPath/Practice/advertising-system/SOICT_DATN/Hinhve) directory.
+
+### Evaluation Metrics & Distributions
+
+| Confusion Matrix | EAR & MAR Distribution |
+| :---: | :---: |
+| ![Confusion Matrix](docs/images/fatigue_detection_confusion_matrix.png) | ![Distribution](docs/images/fatigue_ear_mar_distribution.png) |
+
+### Model Training Curves
+![MobileNetV3 Training Curves](docs/images/training_curves.png)
 
 ---
 
