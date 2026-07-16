@@ -34,7 +34,7 @@ RANDOM_SEED  = 42
 
 FACE_MODEL_PATH = str(BASE_DIR / "models" / "blaze_face_short_range.tflite")
 MIN_DETECTION_CONFIDENCE = 0.5
-BBOX_PADDING = 0.25
+BBOX_PADDING = 0.20
 
 CLASS_FOLDERS = {
     0: "0_Neutral",
@@ -284,6 +284,7 @@ AFFECTNET_CLASS_MAP = {
     "anger":    1,
     "disgust":  1,  # Merged with Anger
     "fear":     2,
+    "surprise": 2,  # Merged with Fear
     "happy":    3,
     "sad":      4,
 }
@@ -374,6 +375,7 @@ def process_affectnet(output_root: Path, detector: FaceDetector):
 
 # RAF-DB folder number -> DMS class (5-class)
 RAFDB_CLASS_MAP = {
+    "1":  2,   # Surprise  -> Class 2 (Merged with Fear)
     "2":  2,   # Fear      -> Class 2
     "3":  1,   # Disgust   -> Class 1 (Merged with Anger)
     "4":  3,   # Happiness -> Class 3
@@ -568,6 +570,7 @@ KMUFED_EMOTION_MAP = {
     "AN":  1,    # Anger   -> Class 1
     "DI":  1,    # Disgust -> Class 1 (Merged with Anger)
     "FE":  2,    # Fear    -> Class 2
+    "SU":  2,    # Surprise-> Class 2 (Merged with Fear)
     "HA":  3,    # Happy   -> Class 3
     "SA":  4,    # Sadness -> Class 4
 }
@@ -650,6 +653,7 @@ FER2013_CLASS_MAP = {
     "angry":    1,
     "disgust":  1,  # Merged with Anger
     "fear":     2,
+    "surprise": 2,  # Merged with Fear
     "happy":    3,
     "sad":      4,
 }
@@ -730,6 +734,7 @@ KDEF_CLASS_MAP = {
     "angry":    1,
     "disgust":  1,  # Merged
     "fear":     2,
+    "surprise": 2,  # Merged with Fear
     "happy":    3,
     "sad":      4,
 }
@@ -777,6 +782,7 @@ SFEW_CLASS_MAP = {
     "Angry":    1,
     "Disgust":  1,  # Merged
     "Fear":     2,
+    "Surprise": 2,  # Merged with Fear
     "Happy":    3,
     "Sad":      4,
 }

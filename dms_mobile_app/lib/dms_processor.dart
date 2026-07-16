@@ -51,8 +51,7 @@ class DmsProcessor {
 
   List<double> _currentProbs = [1.0, 0.0, 0.0, 0.0, 0.0];
 
-  // ignore: unused_field
-  int _blinkCount = 0; // Tracked in window; read value not needed for current f-score formula
+  int _blinkCount = 0; 
   int _yawnCount = 0;
   int _nodCount = 0;
 

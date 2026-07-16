@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
-def build_model(num_classes: int = 2, dropout: float = 0.3) -> nn.Module:
+def build_model(num_classes: int = 5, dropout: float = 0.3) -> nn.Module:
     model = models.mobilenet_v3_small(weights=None)
     in_features = model.classifier[0].in_features
     model.classifier = nn.Sequential(

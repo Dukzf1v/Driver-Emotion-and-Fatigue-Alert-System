@@ -1,9 +1,6 @@
 import config
 
 class FatigueMetrics:
-    """
-    F = 1/2 * (1/2 * F_blink + 3/10 * F_yawn + 1/5 * F_nod + PERCLOS)
-    """
     def __init__(self, window_size=config.FATIGUE_WINDOW_SIZE, fps=config.FPS_DEFAULT):
         self.window_size = window_size
         self.fps = fps

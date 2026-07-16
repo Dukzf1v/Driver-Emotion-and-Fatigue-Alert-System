@@ -82,7 +82,7 @@ def process_folder(folder: Path, true_label: int, label_name: str):
             no_face += 1
             results.append({
                 "ear": None, "mar": None,
-                "pred_label": 0,           # no face → assume active (worst-case safe)
+                "pred_label": 0,       
                 "true_label": true_label,
                 "detected_face": False
             })
